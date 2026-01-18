@@ -1,12 +1,12 @@
 {
   "mode": "fall",
-  "relay": false,
+  "relay": true,
   "sensor_data": {
-    "presence": false,
-    "activity": 0,
+    "presence": true,
+    "activity": 20,
     "fall_detected": false,
     "sleep": null,
-    "relay": false
+    "relay": true
   },
-  "last_updated": null
+  "last_updated": "2026-01-18T04:51:02.467127+00:00"
 }

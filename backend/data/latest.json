@@ -1,12 +1,16 @@
 {
-  "mode": "fall",
+  "mode": "sleep",
   "relay": true,
   "sensor_data": {
     "presence": true,
-    "activity": 6,
+    "activity": 4,
     "fall_detected": false,
-    "sleep": null,
+    "sleep": {
+      "respiration": 16,
+      "movement": 9,
+      "sleep_state": "deep"
+    },
     "relay": true
   },
-  "last_updated": "2026-01-18T04:51:28.510177+00:00"
+  "last_updated": "2026-01-18T04:51:44.556173+00:00"
 }

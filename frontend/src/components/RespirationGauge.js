@@ -38,7 +38,7 @@ export default function RespirationGauge({ currentRate }) {
           />
           <Bar 
             dataKey="value" 
-            radius={0}
+            radius={3}
             animationDuration={300}
           >
             {data.map((entry, index) => (
@@ -47,7 +47,7 @@ export default function RespirationGauge({ currentRate }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex justify-between mt-4 text-xs font-mono">
+      <div className="flex justify-between font-mono text-xs">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-[#16A34A]"></div>
           <span className="text-[#78716C]">Normal (12-18)</span>

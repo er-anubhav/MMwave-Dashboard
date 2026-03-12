@@ -37,16 +37,13 @@ export default function SleepModeDashboard({ sensorData, relayState, onRelayTogg
       {/* Page Title */}
       <div className="mb-8">
         <p className="text-xs uppercase tracking-widest text-[#78716C] mb-2">OPERATIONAL MODE</p>
-        <h2 className="font-serif text-4xl md:text-5xl font-bold tracking-tight text-[#1C1917]">
-          Sleep Monitoring
-        </h2>
       </div>
 
       {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
         {/* Sleep State Hero Card */}
         <div 
-          className="border p-8 col-span-1 md:col-span-2"
+          className="col-span-1 p-8 border md:col-span-2"
           style={{ 
             backgroundColor: getSleepStateColor(),
             borderColor: getSleepStateColor()
@@ -55,8 +52,8 @@ export default function SleepModeDashboard({ sensorData, relayState, onRelayTogg
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs uppercase tracking-widest text-white/80 mb-4">SLEEP STATE</p>
-              <p className="font-mono text-6xl md:text-7xl font-bold tracking-tight text-white mb-6">
+              <p className="mb-4 text-xs tracking-widest uppercase text-white/80">SLEEP STATE</p>
+              <p className="mb-6 font-mono text-3xl tracking-tight text-white md:text-3xl">
                 {getSleepStateText()}
               </p>
               <p className="text-sm text-white/90">
@@ -69,7 +66,7 @@ export default function SleepModeDashboard({ sensorData, relayState, onRelayTogg
                   : "No presence detected"}
               </p>
             </div>
-            <div className="w-16 h-16 flex items-center justify-center border border-white bg-white/20">
+            <div className="flex items-center justify-center w-16 h-16 border border-white bg-white/20">
               <Moon size={32} strokeWidth={1.5} className="text-white" />
             </div>
           </div>
@@ -80,7 +77,7 @@ export default function SleepModeDashboard({ sensorData, relayState, onRelayTogg
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs uppercase tracking-widest text-[#78716C] mb-3">RESPIRATION</p>
-              <p className="font-mono text-5xl font-bold tracking-tight text-[#1C1917] mb-2">
+              <p className="font-mono text-3xl tracking-tight text-[#1C1917] mb-2">
                 {sleepData.respiration}
               </p>
               <p className="text-sm text-[#78716C]">
@@ -98,7 +95,7 @@ export default function SleepModeDashboard({ sensorData, relayState, onRelayTogg
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs uppercase tracking-widest text-[#78716C] mb-3">MOVEMENT INDEX</p>
-              <p className="font-mono text-5xl font-bold tracking-tight text-[#1C1917] mb-2">
+              <p className="font-mono text-3xl tracking-tight text-[#1C1917] mb-2">
                 {sleepData.movement}
               </p>
               <p className="text-sm text-[#78716C]">

@@ -1,0 +1,19 @@
+# Requirements for Simulated Backend (SQLite Edition)
+# Install with: pip install -r requirements_sqlite.txt
+
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.34.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Data Validation
+pydantic==2.10.5
+email-validator==2.2.0
+
+# For file uploads (if needed)
+python-multipart==0.0.20
+
+# SQLite is built into Python, no need to install!

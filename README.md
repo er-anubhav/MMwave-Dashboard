@@ -1,321 +1,369 @@
-# mmWave Smart Switch Dashboard
+# MMWave Dashboard v2.0 - SQLite Edition
 
-A local web-based dashboard for monitoring and controlling ESP32 + mmWave radar systems with fall detection and sleep monitoring capabilities.
+**Multi-user mmWave sensor monitoring dashboard with authentication and device management**
 
-## 🎯 Features
-
-### Fall Detection Mode
-- **Real-time Presence Detection**: Monitor room occupancy
-- **Activity Level Tracking**: Live activity monitoring with historical charts
-- **Fall Detection Alerts**: Visual alerts when falls are detected
-- **Manual Relay Control**: Override relay state anytime
-
-### Sleep Monitoring Mode
-- **Sleep State Tracking**: Monitor sleep phases (Awake, Light, Deep)
-- **Respiration Monitoring**: Track breathing rate with color-coded indicators
-- **Movement Index**: Measure body movement during sleep
-- **Historical Charts**: Visualize respiration trends and movement patterns
-
-### General Features
-- **Real-time Updates**: 1-second polling interval for live data
-- **Mode Switching**: Seamlessly switch between Fall Detection and Sleep Monitoring
-- **Connection Status**: Live connection indicator
-- **Toast Notifications**: User-friendly feedback for all actions
-- **ESP32 Simulator**: Built-in simulator for testing without hardware
-
-## 🏗️ Architecture
-
-### Tech Stack
-- **Backend**: FastAPI (Python)
-- **Frontend**: React with Tailwind CSS
-- **Charts**: Recharts for data visualization
-- **UI Components**: Custom components following minimalist design
-- **Data Storage**: File-based (latest.json)
-
-### Design System
-- **Theme**: Light "Clinical Zen" theme
-- **Typography**: 
-  - Headings: Playfair Display (Serif)
-  - Body: Manrope (Sans-serif)
-  - Data: JetBrains Mono (Monospace)
-- **Colors**: Minimalist palette with sharp edges and scientific feel
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- Yarn package manager
-
-### Installation
-
-1. **Backend Setup**
-```bash
-cd /app/backend
-pip install -r requirements.txt
-```
-
-2. **Frontend Setup**
-```bash
-cd /app/frontend
-yarn install
-```
-
-### Running the Application
-
-The application is managed by supervisord and runs automatically. To manually restart:
-
-```bash
-# Restart backend
-sudo supervisorctl restart backend
-
-# Restart frontend
-sudo supervisorctl restart frontend
-```
-
-### Starting the ESP32 Simulator
-
-The ESP32 simulator sends realistic sensor data to the backend for testing:
-
-```bash
-cd /app/backend
-python3 esp32_simulator.py
-```
-
-Or run in background:
-```bash
-cd /app/backend
-python3 esp32_simulator.py > /tmp/esp32_sim.log 2>&1 &
-```
-
-View simulator logs:
-```bash
-tail -f /tmp/esp32_sim.log
-```
-
-## 📡 API Endpoints
-
-### ESP32 Communication
-
-#### POST /api/data
-ESP32 sends sensor data to the backend.
-
-**Request Body:**
-```json
-{
-  "presence": true,
-  "activity": 23,
-  "fall_detected": false,
-  "sleep": {
-    "respiration": 14,
-    "movement": 3,
-    "sleep_state": "deep"
-  },
-  "relay": false
-}
-```
-
-#### GET /api/command
-ESP32 polls this endpoint to receive commands from the dashboard.
-
-**Response:**
-```json
-{
-  "mode": "fall",
-  "relay": false
-}
-```
-
-### Frontend Communication
-
-#### GET /api/latest-data
-Frontend polls this endpoint to get current system state.
-
-**Response:**
-```json
-{
-  "mode": "fall",
-  "relay": false,
-  "sensor_data": { ... },
-  "last_updated": "2026-01-18T04:45:00Z"
-}
-```
-
-#### POST /api/set-mode
-Change operating mode.
-
-**Request Body:**
-```json
-{
-  "mode": "sleep"
-}
-```
-
-#### POST /api/set-relay
-Control relay state.
-
-**Request Body:**
-```json
-{
-  "relay": true
-}
-```
-
-## 🎨 Design Guidelines
-
-### Color Palette
-- **Background**: `#FAFAF9` (Warm Stone)
-- **Cards**: `#FFFFFF` (Sharp White)
-- **Primary Text**: `#1C1917`
-- **Muted Text**: `#78716C`
-- **Fall Alert**: `#DC2626` (Red)
-- **Fall Safe**: `#16A34A` (Green)
-- **Sleep States**: `#4F46E5` (Light), `#1E1B4B` (Deep)
-- **Relay On**: `#F59E0B` (Amber)
-
-### Typography Scale
-- **H1**: `text-4xl md:text-5xl` (Playfair Display)
-- **H2**: `text-base md:text-lg` (Manrope)
-- **Body**: `text-base` (Manrope)
-- **Data**: `text-5xl` (JetBrains Mono)
-- **Labels**: `text-xs uppercase tracking-widest` (Manrope)
-
-### Component Style
-- **Borders**: Sharp edges (no rounded corners)
-- **Spacing**: Generous (2x standard)
-- **Shadows**: Subtle for cards
-- **Animations**: Smooth transitions on interactions
-
-## 📊 Data Flow
-
-```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│   mmWave    │────▶│    ESP32     │────▶│   FastAPI    │
-│   Radar     │     │  (Processor) │     │   Backend    │
-└─────────────┘     └──────────────┘     └──────────────┘
-                            │                     │
-                            │                     │
-                            ▼                     ▼
-                    ┌──────────────┐     ┌──────────────┐
-                    │    Relay     │     │    React     │
-                    │   Control    │     │  Dashboard   │
-                    └──────────────┘     └──────────────┘
-```
-
-1. **Sensing**: mmWave radar captures environmental signals
-2. **Processing**: ESP32 extracts features (presence, activity, respiration, etc.)
-3. **Upload**: ESP32 sends data to FastAPI backend via `POST /api/data`
-4. **Storage**: Backend stores latest data in `latest.json`
-5. **Display**: React frontend polls backend and displays data
-6. **Control**: User interactions trigger commands via `POST /api/set-mode` or `POST /api/set-relay`
-7. **Command**: ESP32 polls `GET /api/command` to receive instructions
-8. **Action**: ESP32 updates relay state and operating mode
-
-## 🔧 Development
-
-### Project Structure
-```
-/app/
-├── backend/
-│   ├── server.py              # FastAPI application
-│   ├── esp32_simulator.py     # ESP32 device simulator
-│   ├── requirements.txt       # Python dependencies
-│   ├── .env                   # Environment variables
-│   └── data/
-│       └── latest.json        # Current system state
-├── frontend/
-│   ├── src/
-│   │   ├── App.js             # Main app component
-│   │   ├── pages/
-│   │   │   └── Dashboard.js   # Main dashboard page
-│   │   └── components/
-│   │       ├── Header.js
-│   │       ├── FallDetectionDashboard.js
-│   │       ├── SleepModeDashboard.js
-│   │       ├── RelayControl.js
-│   │       ├── ActivityChart.js
-│   │       ├── MovementChart.js
-│   │       └── RespirationGauge.js
-│   ├── package.json
-│   └── tailwind.config.js
-└── README.md
-```
-
-### Adding New Features
-
-1. **Backend**: Add new endpoints in `server.py`
-2. **Frontend**: Create new components in `src/components/`
-3. **Simulator**: Update `esp32_simulator.py` to generate corresponding data
-
-### Testing
-
-#### Test Backend API
-```bash
-# Get latest data
-API_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d '=' -f2)
-curl -s "$API_URL/api/latest-data" | python3 -m json.tool
-
-# Set relay ON
-curl -X POST "$API_URL/api/set-relay" \
-  -H "Content-Type: application/json" \
-  -d '{"relay": true}'
-
-# Switch to sleep mode
-curl -X POST "$API_URL/api/set-mode" \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "sleep"}'
-```
-
-#### Check Logs
-```bash
-# Backend logs
-tail -f /var/log/supervisor/backend.out.log
-
-# Frontend logs
-tail -f /var/log/supervisor/frontend.out.log
-
-# ESP32 Simulator logs
-tail -f /tmp/esp32_sim.log
-```
-
-## 🌐 Access
-
-- **Dashboard**: https://python-dash.preview.emergentagent.com
-- **Backend API**: https://python-dash.preview.emergentagent.com/api
-
-## 🎯 Use Cases
-
-### Fall Detection Mode
-- **Smart Home**: Automatic lighting control based on presence
-- **Elderly Care**: Fall detection alerts for caregivers
-- **Office Spaces**: Energy-efficient lighting automation
-
-### Sleep Monitoring Mode
-- **Sleep Analysis**: Track sleep quality and patterns
-- **Health Monitoring**: Monitor respiration during sleep
-- **Smart Bedroom**: Automated environmental controls
-
-## 🔒 Local-First Architecture
-
-This dashboard is designed to work entirely on your local network:
-- **No Cloud Required**: All data stays on your device
-- **No Internet Needed**: Works offline
-- **Privacy First**: Your data never leaves your network
-- **Fast Response**: Low latency, real-time updates
-
-## 📝 License
-
-This project is built with Emergent Agent.
-
-## 🙏 Credits
-
-- **Design System**: Clinical Zen theme with minimalist aesthetic
-- **Icons**: Lucide React
-- **Charts**: Recharts library
-- **UI Framework**: Tailwind CSS
-- **Backend**: FastAPI
-- **Frontend**: React
+Built by Orbitron Labs
 
 ---
 
-Built with ❤️ using Emergent Agent
+## 🎯 What's This?
+
+A complete web dashboard for monitoring mmWave sensors with:
+- 👥 Multi-user authentication
+- 📱 Multiple devices per user
+- 📊 Real-time fall detection & sleep monitoring
+- 🎛️ Relay control
+- 💾 SQLite database storage
+- 🤖 Built-in device simulator
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Node.js 14+
+
+### Installation (2 Commands!)
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+pip install fastapi uvicorn passlib[bcrypt] python-jose python-multipart
+python simulated_backend.py
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm install
+npm start
+```
+
+**Done!** Open `http://localhost:3000` 🎉
+
+---
+
+## 📚 Documentation
+
+### Getting Started
+- **[QUICKSTART_SQLITE.md](QUICKSTART_SQLITE.md)** - ⭐ **START HERE** - Simple 2-step setup guide
+
+### Original Documentation (Optional)
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System design and architecture
+- [SETUP.md](SETUP.md) - Detailed setup with ESP32 hardware
+- [UPGRADE_SUMMARY.md](UPGRADE_SUMMARY.md) - v2.0 features overview
+- [VISUAL_OVERVIEW.md](VISUAL_OVERVIEW.md) - Visual system diagrams
+
+### Component Documentation
+- [backend/README.md](backend/README.md) - Backend API details
+- [frontend/README.md](frontend/README.md) - Frontend features
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────┐
+│   React Frontend    │
+│   (localhost:3000)  │
+└──────────┬──────────┘
+           │ HTTP/REST
+           │ JWT Auth
+           ▼
+┌─────────────────────┐      ┌──────────────┐
+│  Simulated Backend  │◄────►│   SQLite DB  │
+│   (localhost:8000)  │      │  mmwave.db   │
+│                     │      └──────────────┘
+│  - FastAPI Server   │
+│  - Auth & Devices   │
+│  - Device Simulator │
+└─────────────────────┘
+```
+
+**Key Change:** Everything runs in one backend file using SQLite instead of JSON files!
+
+---
+
+## 📱 Features
+
+### User Management
+- ✅ User registration with password validation
+- ✅ Secure login with JWT tokens
+- ✅ Automatic token refresh
+- ✅ User profile management
+
+### Device Management
+- ✅ Link multiple devices per user
+- ✅ Device naming and organization
+- ✅ Secure device authentication with API keys
+- ✅ Device unlinking
+
+### Monitoring
+- ✅ **Fall Detection Mode**
+  - Real-time presence detection
+  - Activity level monitoring
+  - Fall event alerts
+  - Activity timeline charts
+
+- ✅ **Sleep Mode**
+  - Respiration rate tracking
+  - Movement monitoring
+  - Sleep state detection (deep/light/REM/awake)
+
+### Control
+- ✅ Toggle between fall/sleep modes
+- ✅ Relay control (on/off)
+- ✅ Real-time data updates (2-second intervals)
+
+---
+
+## 🗄️ Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, Tailwind CSS, Radix UI, Axios, Recharts |
+| **Backend** | FastAPI, Python 3.8+ |
+| **Database** | SQLite 3 |
+| **Authentication** | JWT (python-jose), bcrypt (passlib) |
+| **Hardware** | ESP32 (optional - simulator included) |
+
+---
+
+## 📂 Project Structure
+
+```
+MMwave Dashboard/
+├── backend/
+│   ├── simulated_backend.py      # 🔥 ALL-IN-ONE backend + simulator
+│   ├── database.py                # SQLite schema and operations
+│   └── data/
+│       └── mmwave.db             # SQLite database (auto-created)
+│
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Login.js          # User authentication
+│   │   │   ├── Register.js       # User registration  
+│   │   │   ├── Dashboard.js      # Main monitoring interface
+│   │   │   └── DeviceManagement.js  # Device linking/unlinking
+│   │   ├── contexts/
+│   │   │   ├── AuthContext.js    # Authentication state
+│   │   │   └── DeviceContext.js  # Device selection state
+│   │   └── components/           # UI components
+│   ├── package.json
+│   └── ...
+│
+├── QUICKSTART_SQLITE.md          # ⭐ Quick setup guide
+├── README.md                     # This file
+└── ...
+```
+
+---
+
+## 🎮 Usage
+
+### First Time Setup
+
+1. **Start Backend & Frontend** (see Quick Start above)
+
+2. **Register Account**
+   - Open http://localhost:3000
+   - Click "Register"
+   - Create your account
+
+3. **Link Simulated Device**
+   - Go to "Device Management"
+   - Click "Link New Device"
+   - Device ID: `SIM_ABC123`
+   - API Key: (any text)
+   - Name: `Test Sensor`
+
+4. **Start Monitoring**
+   - Select device from header dropdown
+   - View real-time data
+   - Switch modes (Fall Detection ⇄ Sleep Mode)
+   - Control relay
+
+---
+
+## 💾 Database
+
+### Location
+```
+backend/data/mmwave.db
+```
+
+### Inspect Database
+```bash
+cd backend/data
+sqlite3 mmwave.db
+
+.tables              # Show tables
+SELECT * FROM users; # View users
+SELECT * FROM devices; # View devices
+.quit                # Exit
+```
+
+### Backup Database
+```bash
+cp backend/data/mmwave.db backend/data/mmwave_backup_$(date +%Y%m%d).db
+```
+
+---
+
+## 🔐 Security
+
+### Development (Current)
+- Default SECRET_KEY (change for production!)
+- All CORS origins allowed
+- SQLite database
+
+### Production Recommendations
+- ✅ Change `SECRET_KEY` in `simulated_backend.py`
+- ✅ Use HTTPS/TLS
+- ✅ Restrict CORS origins
+- ✅ Use strong passwords
+- ✅ Consider PostgreSQL/MySQL for scale
+- ✅ Enable rate limiting
+- ✅ Regular database backups
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend won't start
+```bash
+# Install dependencies
+pip install fastapi uvicorn passlib[bcrypt] python-jose python-multipart
+
+# Check port 8000
+netstat -ano | findstr :8000  # Windows
+lsof -ti:8000                  # Linux/Mac
+```
+
+### Frontend won't start
+```bash
+# Clear npm cache
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### No data showing
+1. Ensure backend is running
+2. Check device is linked (Device ID: `SIM_ABC123`)
+3. Select device from header dropdown
+4. Check browser console (F12) for errors
+
+More troubleshooting: See [QUICKSTART_SQLITE.md](QUICKSTART_SQLITE.md)
+
+---
+
+## 🚦 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register
+- `POST /api/auth/login` - Login
+- `POST /api/auth/refresh` - Refresh token
+- `GET /api/auth/me` - Current user
+
+### Devices
+- `GET /api/devices` - List user's devices
+- `POST /api/devices/link` - Link new device
+- `PUT /api/devices/{id}/rename` - Rename device
+- `DELETE /api/devices/{id}/unlink` - Unlink device
+
+### Sensor Data
+- `GET /api/data?device_id={id}` - Get latest data
+- `POST /api/data` - Send data (from hardware)
+
+### Control
+- `GET /api/relay?device_id={id}` - Get relay status
+- `POST /api/relay` - Set relay status
+- `GET /api/mode?device_id={id}` - Get mode
+- `POST /api/mode` - Set mode
+
+### Utility
+- `GET /api/stats` - Database statistics
+
+**Full API Docs:** http://localhost:8000/docs
+
+---
+
+## 🎓 What's Different?
+
+### From v1.0
+- ✅ Multi-user (was single user)
+- ✅ Multi-device (was single device)
+- ✅ Authentication (was none)
+- ✅ SQLite database (was JSON files)
+- ✅ All-in-one backend (was multiple files)
+
+### From v2.0 (Original)
+- ✅ SQLite database (was JSON files)
+- ✅ One backend file (was server.py + services/)
+- ✅ Built-in simulator (was separate)
+- ✅ Simpler to run and maintain
+
+---
+
+## 📈 Scaling
+
+### Current: SQLite (Development & Small Scale)
+- ✅ Perfect for development
+- ✅ Handles 100s of devices
+- ✅ Single file deployment
+- ✅ Zero configuration
+
+### Future: PostgreSQL/MySQL (Large Scale)
+When you need to scale:
+1. Create database schema in PostgreSQL
+2. Migrate data with `sqlite3 mmwave.db .dump | psql`
+3. Update database.py to use SQLAlchemy
+4. Deploy with proper DB server
+
+---
+
+## 🤝 Contributing
+
+This is a complete working system ready for:
+- Custom sensor integrations
+- Additional dashboard features
+- Advanced analytics
+- Mobile app companion
+- Cloud deployment
+
+---
+
+## 📄 License
+
+[Add your license here]
+
+---
+
+## 🙏 Credits
+
+Built by **Orbitron Labs**
+
+Uses:
+- FastAPI by Sebastián Ramírez
+- React by Meta
+- Tailwind CSS by Tailwind Labs
+- Radix UI Primitives
+
+---
+
+## 🎯 Next Steps
+
+1. **Read** [QUICKSTART_SQLITE.md](QUICKSTART_SQLITE.md) for detailed setup
+2. **Start** the backend and frontend
+3. **Register** your account
+4. **Link** a device
+5. **Monitor** real-time data
+
+**Need help?** Check the troubleshooting section in QUICKSTART_SQLITE.md
+
+---
+
+**Ready to go? Start with [QUICKSTART_SQLITE.md](QUICKSTART_SQLITE.md)! 🚀**

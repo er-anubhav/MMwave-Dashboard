@@ -41,7 +41,7 @@ export default function MovementChart({ currentMovement }) {
           />
         </AreaChart>
       </ResponsiveContainer>
-      <div className="flex justify-between mt-2 text-xs font-mono text-[#78716C]">
+      <div className="flex justify-between text-xs font-mono text-[#78716C]">
         <span>30s ago</span>
         <span>Now</span>
       </div>

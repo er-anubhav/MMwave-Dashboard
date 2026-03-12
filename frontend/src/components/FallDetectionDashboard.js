@@ -17,21 +17,18 @@ export default function FallDetectionDashboard({ sensorData, relayState, onRelay
     <div>
       {/* Page Title */}
       <div className="mb-8">
-        <p className="text-xs uppercase tracking-widest text-[#78716C] mb-2">OPERATIONAL MODE</p>
-        <h2 className="font-serif text-4xl md:text-5xl font-bold tracking-tight text-[#1C1917]">
-          Fall Detection
-        </h2>
+        <p className="text-sm uppercase tracking-widest text-[#000000] mb-2">OPERATIONAL MODE</p>
       </div>
 
       {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
         {/* Presence Status */}
         <div className="bg-white border border-[#E7E5E4] p-6 col-span-1 md:col-span-1" data-testid="presence-card">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs uppercase tracking-widest text-[#78716C] mb-3">PRESENCE</p>
-              <p className="font-mono text-5xl font-bold tracking-tight text-[#1C1917] mb-4">
-                {presence ? "YES" : "NO"}
+              <p className="font-mono text-3xl tracking-tight text-[#1C1917] mb-4">
+                {presence ? "Yes" : "No"}
               </p>
               <p className="text-sm text-[#78716C]">
                 {presence ? "Person detected in room" : "No presence detected"}
@@ -50,7 +47,7 @@ export default function FallDetectionDashboard({ sensorData, relayState, onRelay
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs uppercase tracking-widest text-[#78716C] mb-3">ACTIVITY LEVEL</p>
-              <p className="font-mono text-5xl font-bold tracking-tight text-[#1C1917] mb-4">
+              <p className="font-mono text-3xl tracking-tight text-[#1C1917] mb-4">
                 {activity}
               </p>
               <p className="text-sm text-[#78716C]">
@@ -77,8 +74,8 @@ export default function FallDetectionDashboard({ sensorData, relayState, onRelay
               <p className={`text-xs uppercase tracking-widest mb-3 ${
                 fall_detected ? "text-white/80" : "text-[#78716C]"
               }`}>FALL DETECTION STATUS</p>
-              <p className="font-mono text-5xl font-bold tracking-tight mb-4">
-                {fall_detected ? "ALERT" : "SAFE"}
+              <p className="mb-4 font-mono text-3xl tracking-tight">
+                {fall_detected ? "Alert" : "Safe"}
               </p>
               <p className={`text-sm ${
                 fall_detected ? "text-white/90" : "text-[#78716C]"

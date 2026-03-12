@@ -1,14 +1,55 @@
-import { Activity, Moon } from "lucide-react";
+import React from "react";
+import { Activity, Moon, ChevronDown, Settings, LogOut, Link as LinkIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "../contexts/AuthContext";
+import { useDevice } from "../contexts/DeviceContext";
+import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Button } from "./ui/button";
 
 export default function Header({ mode, onModeChange, isConnected, lastUpdated }) {
+  const { user, logout } = useAuth();
+  const { devices, selectedDevice, selectDevice } = useDevice();
+  const navigate = useNavigate();
+
+  // Log when selectedDevice changes
+  React.useEffect(() => {
+    console.log('Header - selectedDevice changed:', selectedDevice);
+    console.log('Header - devices:', devices);
+  }, [selectedDevice, devices]);
+
+  // Defensive check for onModeChange function
+  const safeOnModeChange = typeof onModeChange === 'function' 
+    ? onModeChange
+    : (newMode) => console.warn('onModeChange handler not provided', newMode);
+
+  const handleModeChangeClick = (newMode) => {
+    console.log('Mode button clicked:', newMode);
+    console.log('Current mode:', mode);
+    console.log('onModeChange type:', typeof onModeChange);
+    console.log('selectedDevice:', selectedDevice);
+    safeOnModeChange(newMode);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-[#E7E5E4]">
-      <div className="container mx-auto px-6 md:px-12 py-6">
+      <div className="container px-6 py-6 mx-auto md:px-12">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-[#1C1917]">
+            <h1 className="font-serif text-xl md:text-xl tracking-tight text-[#1C1917]">
               mmWave Smart Switch
             </h1>
             <p className="text-sm text-[#78716C] font-mono mt-1">
@@ -16,8 +57,46 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
             </p>
           </div>
 
-          {/* Mode Switcher */}
+          {/* Right Side Controls */}
           <div className="flex items-center gap-4">
+            {/* Device Selector */}
+            {devices.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <LinkIcon size={16} />
+                    <span className="hidden md:inline">
+                      {selectedDevice ? selectedDevice.name : "Select Device"}
+                    </span>
+                    <ChevronDown size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Your Devices</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {devices.map((device) => (
+                    <DropdownMenuItem
+                      key={device.device_id}
+                      onClick={() => selectDevice(device)}
+                      className={selectedDevice?.device_id === device.device_id ? "bg-accent" : ""}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span>{device.name}</span>
+                        <span className={`ml-2 w-2 h-2 rounded-full ${
+                          device.status === 'online' ? 'bg-green-500' : 'bg-gray-300'
+                        }`}></span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/devices")}>
+                    Manage Devices
+                    <Settings className="w-4 h-4 mr-2" />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {/* Connection Status */}
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
@@ -29,32 +108,64 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
             </div>
 
             {/* Mode Toggle */}
-            <div className="flex border border-[#E7E5E4] bg-white">
-              <button
-                data-testid="fall-mode-button"
-                onClick={() => onModeChange("fall")}
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
-                  mode === "fall" 
-                    ? "bg-[#1C1917] text-white" 
-                    : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
-                }`}
-              >
-                <Activity size={18} strokeWidth={1.5} />
-                <span className="font-medium text-sm">Fall Detection</span>
-              </button>
-              <button
-                data-testid="sleep-mode-button"
-                onClick={() => onModeChange("sleep")}
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
-                  mode === "sleep" 
-                    ? "bg-[#1C1917] text-white" 
-                    : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
-                }`}
-              >
-                <Moon size={18} strokeWidth={1.5} />
-                <span className="font-medium text-sm">Sleep Monitoring</span>
-              </button>
-            </div>
+            {selectedDevice && (
+              <div className="flex border border-[#E7E5E4] bg-white">
+                <button
+                  data-testid="fall-mode-button"
+                  onClick={() => handleModeChangeClick("fall")}
+                  className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                    mode === "fall" 
+                      ? "bg-[#1C1917] text-white" 
+                      : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
+                  }`}
+                >
+                  <Activity size={18} strokeWidth={1.5} />
+                  <span className="hidden text-sm font-medium lg:inline">Fall Detection</span>
+                </button>
+                <button
+                  data-testid="sleep-mode-button"
+                  onClick={() => handleModeChangeClick("sleep")}
+                  className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                    mode === "sleep" 
+                      ? "bg-[#1C1917] text-white" 
+                      : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
+                  }`}
+                >
+                  <Moon size={18} strokeWidth={1.5} />
+                  <span className="hidden text-sm font-medium lg:inline">Sleep Monitoring</span>
+                </button>
+              </div>
+            )}
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#1C1917] text-white flex items-center justify-center text-sm font-medium">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <ChevronDown size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div>
+                    <p className="font-medium">{user?.name}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/devices")}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Device Management
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

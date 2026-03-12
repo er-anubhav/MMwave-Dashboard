@@ -1,13 +1,17 @@
 import { Power } from "lucide-react";
 
 export default function RelayControl({ relayState, onToggle }) {
+  // Defensive check for onToggle function
+  const safeOnToggle = typeof onToggle === 'function'
+    ? onToggle
+    : (state) => console.warn('onToggle handler not provided', state);
   return (
     <div className="bg-white border border-[#E7E5E4] p-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-widest text-[#78716C] mb-2">RELAY CONTROL</p>
-          <p className="font-mono text-2xl font-bold tracking-tight text-[#1C1917] mb-2">
-            {relayState ? "ON" : "OFF"}
+          <p className="font-mono text-3xl tracking-tight text-[#1C1917] mb-2">
+            {relayState ? "On" : "Off"}
           </p>
           <p className="text-sm text-[#78716C]">
             Manual override for relay switch
@@ -17,11 +21,11 @@ export default function RelayControl({ relayState, onToggle }) {
         <div className="flex gap-4">
           <button
             data-testid="relay-on-button"
-            onClick={() => onToggle(true)}
+            onClick={() => safeOnToggle(true)}
             disabled={relayState}
             className={`px-8 py-4 border transition-all ${
               relayState
-                ? "border-[#F59E0B] bg-[#F59E0B] text-white cursor-not-allowed"
+                ? "border-[#225c0a] bg-[#225c0a] text-white cursor-not-allowed"
                 : "border-[#E7E5E4] bg-white text-[#1C1917] hover:bg-[#F5F5F4]"
             }`}
           >
@@ -33,7 +37,7 @@ export default function RelayControl({ relayState, onToggle }) {
 
           <button
             data-testid="relay-off-button"
-            onClick={() => onToggle(false)}
+            onClick={() => safeOnToggle(false)}
             disabled={!relayState}
             className={`px-8 py-4 border transition-all ${
               !relayState

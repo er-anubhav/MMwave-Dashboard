@@ -14,7 +14,7 @@ export default function Sidenav() {
  ];
 
  return (
- <aside className="fixed inset-y-0 left-0 z-40 w-64 my-4 ml-4 overflow-y-auto transition-transform bg-white xl:translate-x-0 hidden xl:flex flex-col border border-gray-200 shadow-sm">
+ <aside className="fixed inset-y-0 rounded-xl left-0 z-40 w-64 my-4 ml-4 overflow-y-auto transition-transform bg-white xl:translate-x-0 hidden xl:flex flex-col border border-gray-200 shadow-sm">
  <div className="relative border-b border-gray-100 mb-2">
  <div className="flex items-center gap-3 py-8 px-8"> {/* Modified div class */}
  <Activity className="w-8 h-8 text-emerald-600" /> {/* Added Activity icon */}

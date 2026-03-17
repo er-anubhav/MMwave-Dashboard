@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Manrope:wght@400;500&family=JetBrains+Mono:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,7 @@
 
 body {
     margin: 0;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -17,26 +17,26 @@ code {
 
 @layer base {
     :root {
-        --background: 24 10% 98%;
-        --foreground: 20 14% 11%;
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
         --card: 0 0% 100%;
-        --card-foreground: 20 14% 11%;
+        --card-foreground: 222.2 84% 4.9%;
         --popover: 0 0% 100%;
-        --popover-foreground: 20 14% 11%;
-        --primary: 20 14% 11%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 20 10% 96%;
-        --secondary-foreground: 20 14% 11%;
-        --muted: 20 10% 96%;
-        --muted-foreground: 20 5% 48%;
-        --accent: 20 10% 96%;
-        --accent-foreground: 20 14% 11%;
-        --destructive: 0 84% 51%;
-        --destructive-foreground: 0 0% 100%;
-        --border: 20 6% 90%;
-        --input: 20 6% 90%;
-        --ring: 20 14% 11%;
-        --radius: 0rem;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 142.1 76.2% 36.3%; /* Emerald 600 */
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 142.1 76.2% 36.3%;
+        --radius: 0.5rem;
     }
 }
 

@@ -5,9 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['Manrope', 'sans-serif'],
-        sans: ['Manrope', 'sans-serif'],
-        mono: ['Manrope', 'sans-serif'],
+        sans: ['Montserrat', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
         border: 'hsl(var(--border))',

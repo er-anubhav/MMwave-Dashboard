@@ -1,17 +1,3 @@
-"""
-Simulated Backend for MMWave Dashboard
-Combines FastAPI server + Device Simulator + SQLite database
-Run this single file instead of separate backend and simulator
-
-Usage:
-    python simulated_backend.py
-
-This will:
-- Start API server on http://localhost:8000
-- Simulate ESP32 device sending data
-- Use SQLite database for storage
-"""
-
 import asyncio
 import random
 import time
@@ -36,13 +22,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# Simulated device configuration
-SIMULATED_DEVICE_ID = "SIM_ABC123"
-SIMULATED_DEVICE_MODE = "fall"  # "fall" or "sleep"
-SIMULATED_RELAY_STATE = False
-
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", truncate_error=True)
 
 
 # ==================== PYDANTIC MODELS ====================
@@ -173,102 +154,7 @@ def verify_device_auth(device_id: str, x_device_key: str = Header(None)) -> bool
     return True
 
 
-# ==================== BACKGROUND DEVICE SIMULATOR ====================
 
-class DeviceSimulator:
-    """Simulates an ESP32 device sending sensor data"""
-    
-    def __init__(self):
-        self.device_id = SIMULATED_DEVICE_ID
-        self.mode = SIMULATED_DEVICE_MODE
-        self.relay = SIMULATED_RELAY_STATE
-        self.running = False
-        self.api_key: Optional[str] = None
-        
-    async def start(self):
-        """Start the simulator"""
-        self.running = True
-        print(f"\n🤖 Device Simulator Started")
-        print(f"   Device ID: {self.device_id}")
-        print(f"   Mode: {self.mode}")
-        
-        while self.running:
-            try:
-                # Generate sensor data
-                if self.mode == "fall":
-                    data = self._generate_fall_data()
-                else:
-                    data = self._generate_sleep_data()
-                
-                # Save to database
-                database.save_sensor_data(self.device_id, data)
-                
-                # Wait before next update
-                await asyncio.sleep(2)  # Send data every 2 seconds
-                
-            except Exception as e:
-                print(f"❌ Simulator error: {e}")
-                await asyncio.sleep(5)
-    
-    def _generate_fall_data(self) -> dict:
-        """Generate fall detection mode data"""
-        presence = random.choice([True, False])
-        activity = random.randint(0, 100) if presence else 0
-        fall_detected = random.random() < 0.05 if presence else False  # 5% chance
-        
-        return {
-            "device_id": self.device_id,
-            "mode": self.mode,
-            "relay": self.relay,
-            "sensor_data": {
-                "presence": presence,
-                "activity": activity,
-                "fall_detected": fall_detected,
-                "sleep": None
-            }
-        }
-    
-    def _generate_sleep_data(self) -> dict:
-        """Generate sleep mode data"""
-        presence = True  # Always present in sleep mode
-        respiration = random.randint(12, 18)
-        movement = random.randint(0, 10)
-        sleep_state = random.choice(["deep", "light", "rem", "awake"])
-        
-        return {
-            "device_id": self.device_id,
-            "mode": self.mode,
-            "relay": self.relay,
-            "sensor_data": {
-                "presence": presence,
-                "activity": 0,
-                "fall_detected": False,
-                "sleep": {
-                    "respiration": respiration,
-                    "movement": movement,
-                    "sleep_state": sleep_state
-                }
-            }
-        }
-    
-    def set_mode(self, mode: str):
-        """Update simulator mode"""
-        self.mode = mode
-        print(f"🔄 Simulator mode changed to: {mode}")
-    
-    def set_relay(self, relay: bool):
-        """Update simulator relay"""
-        self.relay = relay
-        print(f"🔌 Simulator relay changed to: {relay}")
-    
-    def stop(self):
-        """Stop the simulator"""
-        self.running = False
-        print("🛑 Device Simulator Stopped")
-
-
-# Global simulator instance
-simulator = DeviceSimulator()
 
 
 # ==================== FASTAPI APP ====================
@@ -278,7 +164,7 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler"""
     # Startup
     print("\n" + "="*60)
-    print("🚀 MMWave Dashboard - Simulated Backend Starting")
+    print("🚀 MMWave Dashboard - API Backend Starting")
     print("="*60)
     
     # Initialize database
@@ -290,20 +176,7 @@ async def lifespan(app: FastAPI):
     print(f"   Users: {stats['users']}")
     print(f"   Devices: {stats['devices']}")
     print(f"   Sensor Records: {stats['sensor_records']}")
-    print(f"   Database Size: {stats['database_size_mb']} MB")
-    
-    # Check if simulated device exists, if not create it
-    device = database.get_device_by_id(SIMULATED_DEVICE_ID)
-    if not device:
-        print(f"\n⚠️  Simulated device {SIMULATED_DEVICE_ID} not linked yet")
-        print(f"   Link it from the frontend Device Management page")
-        print(f"   Use any API key to link it")
-    else:
-        simulator.api_key = device['api_key']
-        print(f"\n✅ Simulated device found and configured")
-    
-    # Start device simulator in background
-    asyncio.create_task(simulator.start())
+    print(f"   Database Size: {stats.get('database_size_mb', 0)} MB")
     
     print(f"\n🌐 API Server running at: http://localhost:8000")
     print(f"📚 API Docs: http://localhost:8000/docs")
@@ -313,13 +186,12 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    simulator.stop()
-    print("\n👋 Simulated Backend Shutdown Complete\n")
+    print("\n👋 API Backend Shutdown Complete\n")
 
 
 app = FastAPI(
-    title="MMWave Dashboard - Simulated Backend",
-    description="Combined API Server + Device Simulator with SQLite",
+    title="MMWave Dashboard - API Backend",
+    description="API Server with SQLite for Smart Switch Firmware",
     version="2.0",
     lifespan=lifespan
 )
@@ -340,10 +212,9 @@ app.add_middleware(
 async def root():
     """Root endpoint"""
     return {
-        "message": "MMWave Dashboard - Simulated Backend API",
+        "message": "MMWave Dashboard - API Backend",
         "version": "2.0",
         "database": "SQLite",
-        "simulated_device": SIMULATED_DEVICE_ID
     }
 
 
@@ -377,6 +248,7 @@ async def register(user_data: UserRegister):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        token_type="bearer",
         user={
             "id": user["id"],
             "name": user["name"],
@@ -404,6 +276,7 @@ async def login(credentials: UserLogin):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        token_type="bearer",
         user={
             "id": user["id"],
             "name": user["name"],
@@ -459,11 +332,6 @@ async def link_device(device_data: DeviceLinkRequest, current_user: dict = Depen
     if not api_key:
         raise HTTPException(status_code=500, detail="Failed to link device")
     
-    # Update simulator if this is the simulated device
-    if device_data.device_id == SIMULATED_DEVICE_ID:
-        simulator.api_key = api_key
-        print(f"✅ Simulated device linked with API key")
-    
     return {
         "message": "Device linked successfully",
         "device_id": device_data.device_id,
@@ -512,11 +380,6 @@ async def unlink_device_endpoint(device_id: str, current_user: dict = Depends(ge
     if not success:
         raise HTTPException(status_code=500, detail="Failed to unlink device")
     
-    # Clear simulator API key if this is the simulated device
-    if device_id == SIMULATED_DEVICE_ID:
-        simulator.api_key = None
-        print(f"⚠️  Simulated device unlinked")
-    
     return {"message": "Device unlinked successfully"}
 
 
@@ -553,10 +416,13 @@ async def get_sensor_data(
 
 
 @app.post("/api/data")
-async def receive_sensor_data(data: SensorDataUpdate, x_device_key: str = Header(None)):
-    """Receive sensor data from device (used by hardware/simulator)"""
-    # Verify device authentication
-    verify_device_auth(data.device_id, x_device_key)
+async def receive_sensor_data(data: SensorDataUpdate):
+    """Receive sensor data from device (used by hardware)"""
+    # The firmware docs indicate the device sends device_id in JSON payload
+    device = database.get_device_by_id(data.device_id)
+    if not device:
+        # In a real system, you might auto-link or reject
+        raise HTTPException(status_code=404, detail="Device not found")
     
     # Save sensor data
     success = database.save_sensor_data(data.device_id, data.dict())
@@ -565,6 +431,19 @@ async def receive_sensor_data(data: SensorDataUpdate, x_device_key: str = Header
         raise HTTPException(status_code=500, detail="Failed to save sensor data")
     
     return {"status": "success", "message": "Data received"}
+
+
+@app.get("/api/command")
+async def get_device_command(device_id: str):
+    """Firmware device polling endpoint to get current mode and relay state"""
+    device = database.get_device_by_id(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+        
+    command = database.get_device_command(device_id)
+    if command:
+        return command
+    return {"mode": "fall", "relay": False}
 
 
 # ==================== RELAY & MODE ROUTES ====================
@@ -598,9 +477,10 @@ async def set_relay(
     if not database.verify_device_ownership(relay_data.device_id, current_user["id"]):
         raise HTTPException(status_code=403, detail="Device not found or access denied")
     
-    # Update simulator if this is the simulated device
-    if relay_data.device_id == SIMULATED_DEVICE_ID:
-        simulator.set_relay(relay_data.relay)
+    # Update relay state
+    success = database.update_device_relay(relay_data.device_id, relay_data.relay)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update relay state")
     
     return {"status": "success", "relay": relay_data.relay}
 
@@ -638,9 +518,10 @@ async def set_mode(
     if mode_data.mode not in ["fall", "sleep"]:
         raise HTTPException(status_code=400, detail="Invalid mode. Must be 'fall' or 'sleep'")
     
-    # Update simulator if this is the simulated device
-    if mode_data.device_id == SIMULATED_DEVICE_ID:
-        simulator.set_mode(mode_data.mode)
+    # Update mode
+    success = database.update_device_mode(mode_data.device_id, mode_data.mode)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update mode")
     
     return {"status": "success", "mode": mode_data.mode}
 
@@ -657,14 +538,12 @@ async def get_stats():
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🎯 Starting MMWave Dashboard Simulated Backend")
+    print("🎯 Starting MMWave Dashboard CPU Backend")
     print("="*60)
-    print("\nThis single service provides:")
+    print("\nThis service provides:")
     print("  ✅ FastAPI backend server")
     print("  ✅ SQLite database storage")
-    print("  ✅ Simulated ESP32 device")
     print("  ✅ Authentication & device management")
-    print("\nNo need to run separate backend or simulator!")
     print("="*60 + "\n")
     
     uvicorn.run(

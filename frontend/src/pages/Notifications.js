@@ -1,9 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import DashboardNavbar from "../components/DashboardNavbar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Send, MessageCircle, Mail, Globe, Check, Save, AlertCircle } from "lucide-react";
+import axios from "axios";
+import { toast } from "sonner";
+import { useDevice } from "../contexts/DeviceContext";
+import useDeviceData from "../hooks/useDeviceData";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 export default function Notifications() {
+ const { selectedDevice } = useDevice();
+ const { mode, handleModeChange, isConnected, lastUpdated } = useDeviceData(selectedDevice);
  const [providers, setProviders] = useState({
  telegram: {
  enabled: false,
@@ -32,6 +41,39 @@ export default function Notifications() {
  });
 
  const [saving, setSaving] = useState(null);
+ const [loading, setLoading] = useState(false);
+
+ const loadProviders = async () => {
+ setLoading(true);
+ try {
+ const response = await axios.get(`${API}/notifications/providers`);
+ const serverProviders = response.data?.providers || [];
+
+ setProviders((prev) => {
+ const updated = { ...prev };
+ for (const provider of serverProviders) {
+ const config = provider.config || {};
+ if (updated[provider.provider]) {
+ updated[provider.provider] = {
+ ...updated[provider.provider],
+ ...config,
+ enabled: !!provider.enabled,
+ status: provider.status || "disconnected"
+ };
+ }
+ }
+ return updated;
+ });
+ } catch (error) {
+ toast.error(error.response?.data?.detail || "Failed to load notification settings");
+ } finally {
+ setLoading(false);
+ }
+ };
+
+ useEffect(() => {
+ loadProviders();
+ }, []);
 
  const toggleProvider = (key) => {
  setProviders((prev) => ({
@@ -53,19 +95,46 @@ export default function Notifications() {
  }));
  };
 
- const handleSave = (key) => {
+ const handleSave = async (key) => {
  setSaving(key);
- // Simulate API call
- setTimeout(() => {
+ try {
+ const providerState = providers[key];
+ const { enabled, status, ...config } = providerState;
+
+ if (enabled) {
+ if (key === "telegram" && (!config.botToken?.trim() || !config.chatId?.trim())) {
+ throw new Error("Telegram requires both bot token and chat ID");
+ }
+ if (key === "whatsapp" && (!config.apiKey?.trim() || !config.phoneNumber?.trim())) {
+ throw new Error("WhatsApp requires API key and target phone number");
+ }
+ if (key === "email" && !config.emailAddress?.trim()) {
+ throw new Error("Email provider requires target email address");
+ }
+ if (key === "webhook" && !config.url?.trim()) {
+ throw new Error("Webhook provider requires endpoint URL");
+ }
+ }
+
+ await axios.put(`${API}/notifications/providers/${key}`, {
+ enabled,
+ status: enabled ? "connected" : "disconnected",
+ config
+ });
+
  setProviders((prev) => ({
  ...prev,
  [key]: {
  ...prev[key],
- status: "connected",
- },
+ status: enabled ? "connected" : "disconnected"
+ }
  }));
+ toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} settings saved`);
+ } catch (error) {
+ toast.error(error.response?.data?.detail || error.message || "Failed to save notification settings");
+ } finally {
  setSaving(null);
- }, 1000);
+ }
  };
 
  const providerConfigs = [
@@ -129,7 +198,13 @@ export default function Notifications() {
 
  return (
  <div className="w-full">
- <DashboardNavbar title="Notification Settings" isConnected={true} />
+ <DashboardNavbar
+ mode={mode}
+ onModeChange={handleModeChange}
+ isConnected={isConnected}
+ lastUpdated={lastUpdated}
+ title="Notification Settings"
+ />
 
  <div className="max-w-8xl mx-auto space-y-2">
  <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -141,6 +216,7 @@ export default function Notifications() {
  <p className="text-sm text-gray-500 mt-2">
  Choose where you want to receive alerts for events like fall detection, presence changes, and system errors.
  </p>
+ {loading && <p className="text-sm text-gray-500 mt-2">Loading saved settings...</p>}
  </div>
  </div>
 

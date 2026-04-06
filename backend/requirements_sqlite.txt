@@ -8,6 +8,7 @@ uvicorn[standard]==0.34.0
 # Authentication & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 
 # Data Validation
 pydantic==2.10.5

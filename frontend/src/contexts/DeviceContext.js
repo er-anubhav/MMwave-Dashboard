@@ -43,20 +43,16 @@ export const DeviceProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await axios.get(`${API}/devices`);
-      console.log('Devices response:', response.data);
       
       // Backend returns array directly or wrapped in devices property
       const devicesList = Array.isArray(response.data) ? response.data : response.data.devices || [];
-      console.log('Loaded devices:', devicesList);
       setDevices(devicesList);
       
       // If no device is selected and devices exist, select the first one
       if (!selectedDevice && devicesList.length > 0) {
-        console.log('Auto-selecting first device:', devicesList[0]);
         setSelectedDevice(devicesList[0]);
       }
     } catch (error) {
-      console.error('Failed to load devices:', error);
       setDevices([]);
     } finally {
       setLoading(false);

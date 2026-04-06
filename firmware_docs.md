@@ -356,27 +356,31 @@ Example command:
 
     POST /api/data
 
-Example payload:
+Recommended payload (canonical nested format):
 
 ``` json
 {
   "device_id": "switch-A4CF12B98A10",
   "mode": "sleep",
-  "presence": true,
-  "activity": 3,
-  "fall_detected": false,
   "relay": true,
-  "sleep": {
-    "respiration": 16,
-    "heart_rate": 72,
-    "state": "light"
+    "sensor_data": {
+        "presence": true,
+        "activity": 3,
+        "fall_detected": false,
+        "sleep": {
+            "respiration": 16,
+            "heart_rate": 72,
+            "sleep_state": "light"
+        }
   }
 }
 ```
 
+Compatibility note: Backend also accepts flat payload fields for legacy firmware, but nested sensor_data is preferred.
+
 ### Command Endpoint
 
-    GET /api/command
+        GET /api/command?device_id=<device-id>
 
 Example response:
 

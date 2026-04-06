@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
+import axios from "axios";
 import {
  Plus,
  Clock,
@@ -13,7 +14,8 @@ import {
  ArrowRight,
  MoreVertical,
  SlidersHorizontal,
- Activity
+ Activity,
+ Trash2
 } from "lucide-react";
 import DashboardNavbar from "../components/DashboardNavbar";
 import { Card, CardContent } from "../components/ui/card";
@@ -23,6 +25,10 @@ import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
+import { toast } from "sonner";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const pageVariants = {
  initial: { opacity: 0, y: 10 },
@@ -36,93 +42,250 @@ const pageTransition = {
  duration: 0.3
 };
 
-// UI Mock Data
-const INITIAL_ROUTINES = [
- {
- id: 1,
- title: "Good Morning",
- description: "Switch to Fall Mode & turn on Fan on presence",
- icon: <Sun className="w-5 h-5 text-amber-500" />,
- time: "07:00 AM",
- active: true,
- tags: ["Time Constraint", "Relay Control"],
- color: "bg-amber-50 border-amber-100",
- iconBg: "bg-white/80"
- },
- {
- id: 2,
- title: "Bedtime",
- description: "Switch to Sleep Mode & monitor vitals",
- icon: <Moon className="w-5 h-5 text-indigo-500" />,
- time: "10:30 PM",
- active: true,
- tags: ["Daily Routine", "Radar Mode"],
- color: "bg-indigo-50 border-indigo-100",
- iconBg: "bg-white/80"
- },
- {
- id: 3,
- title: "Away from Home",
- description: "Alert on presence, keep relay off",
- icon: <ShieldAlert className="w-5 h-5 text-rose-500" />,
- time: "09:00 AM - 05:00 PM",
- active: false,
- tags: ["Security", "Time Constraint"],
- color: "bg-rose-50 border-rose-100",
- iconBg: "bg-white/80"
- }
-];
+function getAutomationUi(automationType, title) {
+ const lowerTitle = (title || "").toLowerCase();
 
-const INITIAL_RULES = [
- {
- id: 4,
- title: "Movie / Focus Mode",
- description: "If activity is low for 10 minutes, extend presence timeout to 30 mins",
- icon: <Play className="w-5 h-5 text-purple-600" />,
- condition: "Custom Logic",
- active: true,
- tags: ["Activity Based", "Timeout Adjust"],
- color: "bg-purple-50 border-purple-100",
- iconBg: "bg-white/80"
- },
- {
- id: 5,
- title: "Cool Down",
- description: "Keep AC/Fan running for 15 mins after leaving room if activity was high",
- icon: <Zap className="w-5 h-5 text-emerald-600" />,
- condition: "Post-Presence",
- active: false,
- tags: ["Relay Control", "Activity Based"],
- color: "bg-emerald-50 border-emerald-100",
- iconBg: "bg-white/80"
- },
- {
- id: 6,
- title: "Fall Detection Alarm",
- description: "Sound alarm if fall is detected, delay emergency contact by 30s",
- icon: <Activity className="w-5 h-5 text-red-600" />,
- condition: "Emergency",
- active: true,
- tags: ["Health", "Critical"],
- color: "bg-red-50 border-red-100",
- iconBg: "bg-white/80"
+ if (automationType === "routine") {
+ if (lowerTitle.includes("morning")) {
+ return {
+ icon: <Sun className="w-5 h-5 text-amber-500" />,
+ color: "bg-amber-50 border-amber-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Scheduled"
+ };
  }
-];
+ if (lowerTitle.includes("sleep") || lowerTitle.includes("bed")) {
+ return {
+ icon: <Moon className="w-5 h-5 text-indigo-500" />,
+ color: "bg-indigo-50 border-indigo-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Night"
+ };
+ }
+ return {
+ icon: <CalendarDays className="w-5 h-5 text-emerald-600" />,
+ color: "bg-emerald-50 border-emerald-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Routine"
+ };
+ }
+
+ if (lowerTitle.includes("fall")) {
+ return {
+ icon: <ShieldAlert className="w-5 h-5 text-rose-500" />,
+ color: "bg-rose-50 border-rose-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Safety"
+ };
+ }
+
+ if (lowerTitle.includes("focus") || lowerTitle.includes("movie")) {
+ return {
+ icon: <Play className="w-5 h-5 text-purple-600" />,
+ color: "bg-purple-50 border-purple-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Custom Logic"
+ };
+ }
+
+ return {
+ icon: <Zap className="w-5 h-5 text-emerald-600" />,
+ color: "bg-emerald-50 border-emerald-100",
+ iconBg: "bg-white/80",
+ secondaryLabel: "Rule"
+ };
+}
 
 export default function Automations() {
  const { selectedDevice } = useDevice();
  const { mode, handleModeChange, isConnected, lastUpdated } = useDeviceData(selectedDevice);
 
- const [routines, setRoutines] = useState(INITIAL_ROUTINES);
- const [rules, setRules] = useState(INITIAL_RULES);
+ const [routines, setRoutines] = useState([]);
+ const [rules, setRules] = useState([]);
+ const [activeTab, setActiveTab] = useState("routines");
+ const [loadingAutomations, setLoadingAutomations] = useState(false);
  const [isModalOpen, setIsModalOpen] = useState(false);
+ const [editingAutomation, setEditingAutomation] = useState(null);
+ const [isSaving, setIsSaving] = useState(false);
+ const [createForm, setCreateForm] = useState({
+ title: "",
+ description: "",
+ trigger: "Time is 10:00 PM",
+ action: "Set mode to Sleep"
+ });
 
- const toggleRoutine = (id) => {
- setRoutines(routines.map(r => r.id === id ? { ...r, active: !r.active } : r));
+ const loadAutomations = async () => {
+ if (!selectedDevice) {
+ setRoutines([]);
+ setRules([]);
+ return;
+ }
+
+ setLoadingAutomations(true);
+ try {
+ const response = await axios.get(`${API}/automations`, {
+ params: { device_id: selectedDevice.device_id }
+ });
+
+ const items = response.data?.automations || [];
+ const mapped = items.map((item) => {
+ const ui = getAutomationUi(item.automation_type, item.title);
+ return {
+ id: item.id,
+ title: item.title,
+ description: item.description || "No description",
+ active: !!item.active,
+ tags: item.tags || item.data?.tags || [ui.secondaryLabel],
+ condition: item.data?.trigger || ui.secondaryLabel,
+ time: item.data?.time || "Not set",
+ data: item.data || {},
+ type: item.automation_type,
+ color: ui.color,
+ icon: ui.icon,
+ iconBg: ui.iconBg
+ };
+ });
+
+ setRoutines(mapped.filter((item) => item.type === "routine"));
+ setRules(mapped.filter((item) => item.type === "rule"));
+ } catch (error) {
+ toast.error(error.response?.data?.detail || "Failed to load automations");
+ } finally {
+ setLoadingAutomations(false);
+ }
  };
 
- const toggleRule = (id) => {
- setRules(rules.map(r => r.id === id ? { ...r, active: !r.active } : r));
+ useEffect(() => {
+ loadAutomations();
+ }, [selectedDevice]);
+
+ const updateAutomationActive = async (item, nextActive) => {
+ try {
+ await axios.put(`${API}/automations/${item.id}`, {
+ title: item.title,
+ description: item.description,
+ active: nextActive,
+ data: item.data || {}
+ });
+ } catch (error) {
+ throw new Error(error.response?.data?.detail || "Failed to update automation");
+ }
+ };
+
+ const toggleRoutine = async (id) => {
+ const selected = routines.find((item) => item.id === id);
+ if (!selected) {
+ return;
+ }
+
+ const nextActive = !selected.active;
+ setRoutines(routines.map((item) => item.id === id ? { ...item, active: nextActive } : item));
+ try {
+ await updateAutomationActive(selected, nextActive);
+ } catch (error) {
+ setRoutines(routines.map((item) => item.id === id ? { ...item, active: selected.active } : item));
+ toast.error(error.message);
+ }
+ };
+
+ const toggleRule = async (id) => {
+ const selected = rules.find((item) => item.id === id);
+ if (!selected) {
+ return;
+ }
+
+ const nextActive = !selected.active;
+ setRules(rules.map((item) => item.id === id ? { ...item, active: nextActive } : item));
+ try {
+ await updateAutomationActive(selected, nextActive);
+ } catch (error) {
+ setRules(rules.map((item) => item.id === id ? { ...item, active: selected.active } : item));
+ toast.error(error.message);
+ }
+ };
+
+ const resetCreateForm = () => {
+ setCreateForm({
+ title: "",
+ description: "",
+ trigger: "Time is 10:00 PM",
+ action: "Set mode to Sleep"
+ });
+ };
+
+ const handleCreateAutomation = async () => {
+ if (!selectedDevice) {
+ toast.error("No device selected");
+ return;
+ }
+ if (!createForm.title.trim()) {
+ toast.error("Automation title is required");
+ return;
+ }
+
+ setIsSaving(true);
+ try {
+ const automationType = editingAutomation
+ ? editingAutomation.type
+ : (activeTab === "routines" ? "routine" : "rule");
+ const payload = {
+ title: createForm.title.trim(),
+ description: createForm.description.trim(),
+ active: editingAutomation ? editingAutomation.active : true,
+ data: {
+ trigger: createForm.trigger,
+ action: createForm.action,
+ tags: automationType === "routine" ? ["Time Constraint", "Relay Control"] : ["Activity Based", "Custom Logic"],
+ time: automationType === "routine" ? createForm.trigger.replace("Time is ", "") : "Condition-driven"
+ }
+ };
+
+ if (editingAutomation) {
+ await axios.put(`${API}/automations/${editingAutomation.id}`, payload);
+ toast.success("Automation updated");
+ } else {
+ await axios.post(`${API}/automations`, {
+ device_id: selectedDevice.device_id,
+ automation_type: automationType,
+ ...payload
+ });
+ toast.success("Automation created");
+ }
+
+ setIsModalOpen(false);
+ setEditingAutomation(null);
+ resetCreateForm();
+ await loadAutomations();
+ } catch (error) {
+ toast.error(error.response?.data?.detail || "Failed to save automation");
+ } finally {
+ setIsSaving(false);
+ }
+ };
+
+ const handleDeleteAutomation = async (id) => {
+ if (!window.confirm("Delete this automation?")) {
+ return;
+ }
+
+ try {
+ await axios.delete(`${API}/automations/${id}`);
+ toast.success("Automation deleted");
+ await loadAutomations();
+ } catch (error) {
+ toast.error(error.response?.data?.detail || "Failed to delete automation");
+ }
+ };
+
+ const handleEditAutomation = (item) => {
+ setEditingAutomation(item);
+ setCreateForm({
+ title: item.title || "",
+ description: item.description || "",
+ trigger: item.data?.trigger || "Time is 10:00 PM",
+ action: item.data?.action || "Set mode to Sleep"
+ });
+ setIsModalOpen(true);
  };
 
  if (!selectedDevice) {
@@ -153,7 +316,7 @@ export default function Automations() {
  lastUpdated={lastUpdated}
  title="Automations"
  />
- <Tabs defaultValue="routines" className="w-full">
+ <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
  <TabsList className="bg-white border border-gray-200 shadow-sm p-1 rounded-lg h-auto">
  <TabsTrigger value="routines" className="rounded-md px-6 py-2.5 text-sm data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900 data-[state=active]:shadow-none transition-all">
@@ -210,13 +373,23 @@ export default function Automations() {
  {tag}
  </Badge>
  ))}
- <button className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/5`}>
+ <button onClick={() => handleEditAutomation(routine)} className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/5`}>
  <MoreVertical className="w-4 h-4 text-gray-500" />
+ </button>
+ <button onClick={() => handleDeleteAutomation(routine.id)} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/5`}>
+ <Trash2 className="w-4 h-4 text-red-500" />
  </button>
  </div>
  </div>
  </Card>
  ))}
+
+ {!loadingAutomations && routines.length === 0 && (
+ <Card className="flex flex-col items-center justify-center p-6 border border-gray-200 bg-white min-h-[260px] rounded-xl">
+ <p className="text-gray-700">No routines yet for this device</p>
+ <p className="text-sm text-gray-500 mt-1">Create your first routine automation</p>
+ </Card>
+ )}
 
  {/* Empty State / Add New */}
  <Card className="flex flex-col items-center justify-center p-6 border-dashed border-2 border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer min-h-[260px] rounded-xl group" onClick={() => setIsModalOpen(true)}>
@@ -265,14 +438,24 @@ export default function Automations() {
  ))}
  </div>
 
- <Button variant="ghost" size="sm" className={`gap-1 text-xs h-8 hover:bg-white/50 ${rule.active ? 'text-gray-700' : 'text-gray-400'}`}>
+ <Button variant="ghost" size="sm" onClick={() => handleEditAutomation(rule)} className={`gap-1 text-xs h-8 hover:bg-white/50 ${rule.active ? 'text-gray-700' : 'text-gray-400'}`}>
  Configure <ArrowRight className="w-3 h-3" />
+ </Button>
+ <Button variant="ghost" size="sm" onClick={() => handleDeleteAutomation(rule.id)} className="gap-1 text-xs h-8 text-red-600 hover:bg-red-50">
+ Remove
  </Button>
  </div>
  </div>
  </div>
  </Card>
  ))}
+
+ {!loadingAutomations && rules.length === 0 && (
+ <Card className="flex flex-col items-center justify-center p-6 border border-gray-200 bg-white min-h-[180px] rounded-xl">
+ <p className="text-gray-700">No activity rules yet for this device</p>
+ <p className="text-sm text-gray-500 mt-1">Create your first condition-based rule</p>
+ </Card>
+ )}
 
  {/* Empty State / Add New */}
  <Card className="flex flex-col items-center justify-center p-6 border-dashed border-2 border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer min-h-[180px] rounded-xl group" onClick={() => setIsModalOpen(true)}>
@@ -300,17 +483,37 @@ export default function Automations() {
  >
  <Card className="w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
  <div className="p-6 border-b border-gray-100 bg-white">
- <h2 className="text-xl text-gray-900">Create New Automation</h2>
- <p className="text-sm text-gray-500">Demo UI - Backend interaction coming soon</p>
+ <h2 className="text-xl text-gray-900">{editingAutomation ? "Edit Automation" : "Create New Automation"}</h2>
+ <p className="text-sm text-gray-500">This will be saved to your selected device</p>
  </div>
  <CardContent className="p-6 bg-gray-50 flex flex-col gap-4">
  <div className="grid gap-2">
  <label className="text-sm text-gray-700">Automation Title</label>
- <input type="text" placeholder="e.g. Nightlight mode" className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file: placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+ <input
+ type="text"
+ placeholder="e.g. Nightlight mode"
+ value={createForm.title}
+ onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
+ className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file: placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+ />
+ </div>
+ <div className="grid gap-2">
+ <label className="text-sm text-gray-700">Description</label>
+ <input
+ type="text"
+ placeholder="What this automation does"
+ value={createForm.description}
+ onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
+ className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file: placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+ />
  </div>
  <div className="grid gap-2">
  <label className="text-sm text-gray-700">When this happens (Trigger)</label>
- <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+ <select
+ value={createForm.trigger}
+ onChange={(e) => setCreateForm((prev) => ({ ...prev, trigger: e.target.value }))}
+ className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+ >
  <option>Time is 10:00 PM</option>
  <option>Presence detected</option>
  <option>Fall detected</option>
@@ -319,7 +522,11 @@ export default function Automations() {
  </div>
  <div className="grid gap-2 mb-4">
  <label className="text-sm text-gray-700">Do this (Action)</label>
- <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+ <select
+ value={createForm.action}
+ onChange={(e) => setCreateForm((prev) => ({ ...prev, action: e.target.value }))}
+ className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+ >
  <option>Set mode to Sleep</option>
  <option>Set mode to Fall Detection</option>
  <option>Turn Relay ON</option>
@@ -328,8 +535,10 @@ export default function Automations() {
  </div>
 
  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
- <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
- <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsModalOpen(false)}>Save Rules</Button>
+ <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingAutomation(null); resetCreateForm(); }}>Cancel</Button>
+ <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={isSaving} onClick={handleCreateAutomation}>
+ {isSaving ? "Saving..." : (editingAutomation ? "Update Automation" : "Save Rule")}
+ </Button>
  </div>
  </CardContent>
  </Card>

@@ -13,6 +13,7 @@ from contextlib import contextmanager
 
 # Database path
 DB_PATH = Path(__file__).parent / "data" / "mmwave.db"
+DEFAULT_NOTIFICATION_PROVIDERS = ("telegram", "whatsapp", "email", "webhook")
 
 # Ensure data directory exists
 DB_PATH.parent.mkdir(exist_ok=True)
@@ -80,12 +81,67 @@ def init_database():
                 FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE CASCADE
             )
         """)
+
+        # Automations table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS automations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                device_id TEXT,
+                automation_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                active INTEGER DEFAULT 1,
+                data_json TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE CASCADE
+            )
+        """)
+
+        # Notification channel settings table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notification_channels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                enabled INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'disconnected',
+                config_json TEXT DEFAULT '{}',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, provider),
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+
+        # System logs table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS system_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                device_id TEXT,
+                event TEXT NOT NULL,
+                log_type TEXT DEFAULT 'info',
+                status TEXT DEFAULT 'Active',
+                metadata_json TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+                FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE SET NULL
+            )
+        """)
         
         # Create indexes for faster queries
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices (user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices (device_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sensor_data_device_id ON sensor_data (device_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp ON sensor_data (timestamp)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_automations_user_id ON automations (user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_automations_device_id ON automations (device_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notification_channels_user_id ON notification_channels (user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_user_id ON system_logs (user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_device_id ON system_logs (device_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs (created_at)")
         
         # Add migration for last_seen column if it doesn't exist
         cursor.execute("PRAGMA table_info(devices)")
@@ -404,6 +460,221 @@ def get_device_command(device_id: str) -> Optional[Dict[str, Any]]:
                 "relay": bool(row["desired_relay"])
             }
         return None
+
+
+# ==================== AUTOMATION OPERATIONS ====================
+
+def list_automations(user_id: int, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List automations for a user, optionally filtered by device"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if device_id:
+            cursor.execute(
+                """
+                SELECT * FROM automations
+                WHERE user_id = ? AND (device_id = ? OR device_id IS NULL)
+                ORDER BY updated_at DESC
+                """,
+                (user_id, device_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM automations WHERE user_id = ? ORDER BY updated_at DESC",
+                (user_id,)
+            )
+
+        items = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            item.update(json.loads(item.get("data_json") or "{}"))
+            item["active"] = bool(item.get("active", 0))
+            item.pop("data_json", None)
+            items.append(item)
+        return items
+
+
+def create_automation(
+    user_id: int,
+    device_id: Optional[str],
+    automation_type: str,
+    title: str,
+    description: str,
+    active: bool,
+    payload: Dict[str, Any]
+) -> Optional[int]:
+    """Create an automation entry"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO automations (user_id, device_id, automation_type, title, description, active, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, device_id, automation_type, title, description, 1 if active else 0, json.dumps(payload))
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def update_automation(
+    automation_id: int,
+    user_id: int,
+    title: str,
+    description: str,
+    active: bool,
+    payload: Dict[str, Any]
+) -> bool:
+    """Update an automation entry"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE automations
+            SET title = ?, description = ?, active = ?, data_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+            """,
+            (title, description, 1 if active else 0, json.dumps(payload), automation_id, user_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def delete_automation(automation_id: int, user_id: int) -> bool:
+    """Delete an automation entry"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM automations WHERE id = ? AND user_id = ?",
+            (automation_id, user_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+# ==================== NOTIFICATION OPERATIONS ====================
+
+def get_notification_channels(user_id: int) -> List[Dict[str, Any]]:
+    """Get all notification channel configs for a user"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT provider, enabled, status, config_json, updated_at FROM notification_channels WHERE user_id = ?",
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        by_provider = {}
+        for row in rows:
+            item = dict(row)
+            by_provider[item["provider"]] = {
+                "provider": item["provider"],
+                "enabled": bool(item["enabled"]),
+                "status": item["status"],
+                "config": json.loads(item.get("config_json") or "{}"),
+                "updated_at": item["updated_at"]
+            }
+
+        result = []
+        for provider in DEFAULT_NOTIFICATION_PROVIDERS:
+            result.append(
+                by_provider.get(
+                    provider,
+                    {
+                        "provider": provider,
+                        "enabled": False,
+                        "status": "disconnected",
+                        "config": {},
+                        "updated_at": None
+                    }
+                )
+            )
+        return result
+
+
+def upsert_notification_channel(
+    user_id: int,
+    provider: str,
+    enabled: bool,
+    status: str,
+    config: Dict[str, Any]
+) -> bool:
+    """Create or update a notification channel configuration"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO notification_channels (user_id, provider, enabled, status, config_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id, provider) DO UPDATE SET
+                enabled = excluded.enabled,
+                status = excluded.status,
+                config_json = excluded.config_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, provider, 1 if enabled else 0, status, json.dumps(config))
+        )
+        conn.commit()
+        return True
+
+
+# ==================== SYSTEM LOG OPERATIONS ====================
+
+def create_system_log(
+    user_id: int,
+    device_id: Optional[str],
+    event: str,
+    log_type: str = "info",
+    status: str = "Active",
+    metadata: Optional[Dict[str, Any]] = None
+) -> Optional[int]:
+    """Create a system log entry"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO system_logs (user_id, device_id, event, log_type, status, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, device_id, event, log_type, status, json.dumps(metadata or {}))
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_system_logs(user_id: int, device_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    """Get recent system logs for a user"""
+    safe_limit = max(1, min(limit, 200))
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if device_id:
+            cursor.execute(
+                """
+                SELECT id, device_id, event, log_type, status, metadata_json, created_at
+                FROM system_logs
+                WHERE user_id = ? AND device_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (user_id, device_id, safe_limit)
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT id, device_id, event, log_type, status, metadata_json, created_at
+                FROM system_logs
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (user_id, safe_limit)
+            )
+
+        logs = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            item["metadata"] = json.loads(item.get("metadata_json") or "{}")
+            item.pop("metadata_json", None)
+            logs.append(item)
+        return logs
 
 
 # ==================== STATISTICS ====================

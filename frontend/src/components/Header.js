@@ -19,22 +19,12 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
  const { devices, selectedDevice, selectDevice } = useDevice();
  const navigate = useNavigate();
 
- // Log when selectedDevice changes
- React.useEffect(() => {
- console.log('Header - selectedDevice changed:', selectedDevice);
- console.log('Header - devices:', devices);
- }, [selectedDevice, devices]);
-
  // Defensive check for onModeChange function
  const safeOnModeChange = typeof onModeChange === 'function' 
  ? onModeChange
  : (newMode) => console.warn('onModeChange handler not provided', newMode);
 
  const handleModeChangeClick = (newMode) => {
- console.log('Mode button clicked:', newMode);
- console.log('Current mode:', mode);
- console.log('onModeChange type:', typeof onModeChange);
- console.log('selectedDevice:', selectedDevice);
  safeOnModeChange(newMode);
  };
 

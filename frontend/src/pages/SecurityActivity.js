@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
 import DashboardNavbar from "../components/DashboardNavbar";
@@ -10,6 +11,11 @@ import { LinkIcon, Plus, User, Shield } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
+import axios from "axios";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
 
 const pageVariants = {
  initial: { opacity: 0, y: 10 },
@@ -27,6 +33,39 @@ export default function SecurityActivity() {
  const navigate = useNavigate();
  const { selectedDevice, devices = [] } = useDevice();
  const { mode, sensorData, lastUpdated, isConnected, handleModeChange } = useDeviceData(selectedDevice);
+ const [logs, setLogs] = useState([]);
+
+ useEffect(() => {
+ if (!selectedDevice) {
+ setLogs([]);
+ return;
+ }
+
+ const loadLogs = async () => {
+ try {
+ const response = await axios.get(`${API}/logs`, {
+ params: { device_id: selectedDevice.device_id, limit: 30 }
+ });
+ const serverLogs = response.data?.logs || [];
+ const normalized = serverLogs.map((log) => ({
+ id: log.id,
+ event: log.event,
+ type: log.log_type || "info",
+ time: log.created_at
+ ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
+ : "just now",
+ status: log.status || "Active"
+ }));
+ setLogs(normalized);
+ } catch {
+ setLogs([]);
+ }
+ };
+
+ loadLogs();
+ const interval = setInterval(loadLogs, 10000);
+ return () => clearInterval(interval);
+ }, [selectedDevice]);
 
  if (devices.length === 0) {
  return (
@@ -122,7 +161,7 @@ export default function SecurityActivity() {
  </div>
 
  <div className="grid grid-cols-1">
- <SystemLogsTable />
+ <SystemLogsTable logs={logs} />
  </div>
  </main>
  </motion.div>

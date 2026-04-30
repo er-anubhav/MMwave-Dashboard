@@ -10,7 +10,8 @@ FastAPI backend for the mmWave ESP32 dashboard. It provides:
 - Relay and radar mode commands for firmware polling
 - Automations
 - Notification settings and notification activity
-- SQLite storage
+- PostgreSQL production storage with SQLite local fallback
+- Tenant/client isolation for SaaS deployments
 
 ## Prerequisites
 
@@ -47,7 +48,10 @@ For production:
 - Set `ALLOWED_ORIGINS` to the deployed frontend origin, not `*`.
 - Set `TRUSTED_HOSTS` to the deployed API hostnames, not `*`.
 - Serve the API behind HTTPS.
-- Back up `backend/data/mmwave.db` or move to a managed database before high-volume use.
+- Set `DATABASE_URL` to PostgreSQL for production.
+- Back up PostgreSQL with `pg_dump` or managed database backups.
+
+For the VPS + Vercel production deployment, see [../DEPLOYMENT.md](../DEPLOYMENT.md).
 
 When `APP_ENV=production`, interactive API docs and OpenAPI JSON are disabled, weak JWT secrets are rejected, and wildcard CORS/trusted-host settings are rejected.
 
@@ -127,7 +131,13 @@ The API starts on the configured host and port. By default:
 
 ## Data Storage
 
-SQLite database:
+Production database:
+
+```text
+DATABASE_URL=postgresql://...
+```
+
+Local development fallback:
 
 ```text
 backend/data/mmwave.db
@@ -135,7 +145,9 @@ backend/data/mmwave.db
 
 Important tables:
 
+- `tenants`
 - `users`
+- `tenant_memberships`
 - `devices`
 - `sensor_data`
 - `automations`
@@ -164,6 +176,13 @@ Telemetry can include optional device health fields:
 
 ## Testing
 
+Run backend unit tests:
+
+```bash
+cd ..
+./backend/venv/bin/pytest backend/tests
+```
+
 Run backend smoke tests against a running API:
 
 ```bash
@@ -172,6 +191,17 @@ cd backend
 ```
 
 Manual testing can be done from `http://localhost:8000/docs`.
+
+## Migrations
+
+Production schema changes should be applied with Alembic:
+
+```bash
+cd ..
+DATABASE_URL=postgresql://... ./backend/venv/bin/alembic upgrade head
+```
+
+The backend still initializes missing tables at startup for local development, but production deploys should run migrations before restarting the service.
 
 ## Troubleshooting
 
@@ -196,10 +226,12 @@ in `config.json`, then restart the backend.
 
 Stop the backend, move or delete `backend/data/mmwave.db`, then start the backend again. The schema is recreated automatically.
 
+For PostgreSQL development resets, drop and recreate the database, then start the backend so the schema is initialized.
+
 ## Files
 
 - `main.py`: FastAPI app and routes
-- `database.py`: SQLite schema and data access
+- `database.py`: tenant-aware SQLAlchemy database layer for PostgreSQL and SQLite fallback
 - `config.py`: runtime config loader
 - `config.json`: editable backend configuration
 - `requirements_sqlite.txt`: Python dependencies

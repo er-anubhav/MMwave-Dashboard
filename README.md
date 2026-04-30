@@ -1,13 +1,14 @@
 # mmWave Dashboard
 
-Local dashboard for an ESP32 mmWave smart switch/sensor. The system includes a FastAPI backend, SQLite storage, a React dashboard, JWT dashboard auth, device API-key auth, automations, device health, diagnostics, backups, and local retention controls.
+Dashboard for ESP32 mmWave smart switch/sensor deployments. The system includes a FastAPI backend, PostgreSQL production storage with SQLite local fallback, a React dashboard, JWT dashboard auth, hashed device API-key auth, tenant isolation, automations, device health, diagnostics, backups, and retention controls.
 
 ## What Is Included
 
-- FastAPI backend with SQLite
+- FastAPI backend with PostgreSQL support and SQLite local fallback
 - React dashboard frontend
 - JWT login/register flow for dashboard users
-- ESP32 telemetry ingestion with `X-Device-Key`
+- Tenant/client isolation for SaaS deployments
+- ESP32 telemetry ingestion with hashed `X-Device-Key`
 - Device command polling for mode, relay state, and relay mode
 - Normal sensor-triggered automations
 - Scheduled routine automations
@@ -21,8 +22,9 @@ Local dashboard for an ESP32 mmWave smart switch/sensor. The system includes a F
 ## Project Structure
 
 ```text
-backend/              FastAPI API, SQLite database layer, smoke tests
+backend/              FastAPI API, tenant-aware database layer, smoke tests
 frontend/             React dashboard
+DEPLOYMENT.md         VPS backend + Vercel frontend deployment guide
 FIRMWARE_HANDOFF.md   Firmware-facing API contract
 firmware_docs.md      Firmware integration notes
 ```
@@ -62,22 +64,25 @@ Frontend expects:
 REACT_APP_BACKEND_URL=http://localhost:8000
 ```
 
-## Production/Local Deployment Notes
+## Production Deployment Notes
 
-For a local-device deployment, SQLite is acceptable. Before production use, configure:
+For SaaS production, use Vercel for the frontend, a VPS for the backend, and PostgreSQL via `DATABASE_URL`:
 
 ```env
 APP_ENV=production
+DATABASE_URL=postgresql://mmwave_app:<password>@localhost:5432/mmwave_dashboard
 JWT_SECRET_KEY=<strong-32-plus-character-secret>
-ALLOWED_ORIGINS=http://localhost:3000
-TRUSTED_HOSTS=localhost,127.0.0.1,::1
+ALLOWED_ORIGINS=https://app.yourdomain.com
+TRUSTED_HOSTS=api.yourdomain.com
 ```
 
-Use HTTPS if exposing the backend beyond localhost/LAN, and back up:
+Use HTTPS for the backend and set Vercel:
 
 ```text
-backend/data/mmwave.db
+REACT_APP_BACKEND_URL=https://api.yourdomain.com
 ```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the full VPS, Nginx, systemd, Vercel, and backup guide.
 
 ## ESP32 Contract
 
@@ -140,6 +145,18 @@ cd backend
 ./venv/bin/python smoke_test.py --base-url http://localhost:8000
 ```
 
+Backend tenant-isolation tests:
+
+```bash
+./backend/venv/bin/pytest backend/tests
+```
+
+Apply database migrations:
+
+```bash
+DATABASE_URL=postgresql://... ./backend/venv/bin/alembic upgrade head
+```
+
 Frontend production build:
 
 ```bash
@@ -149,4 +166,4 @@ npm run build
 
 ## Handover Summary
 
-Current code is ready for a local-device deployment. It is not designed as a cloud multi-tenant data platform yet. If cloud storage or many deployed sites are added later, the main future upgrade should be moving SQLite to Postgres and adding managed backups.
+Current code is prepared for a SaaS-style deployment with tenant isolation. SQLite remains useful for local development; production should use PostgreSQL.

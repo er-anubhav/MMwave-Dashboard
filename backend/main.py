@@ -196,6 +196,24 @@ def create_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def token_payload_for_user(user: dict) -> dict:
+    return {
+        "user_id": user["id"],
+        "tenant_id": user.get("tenant_id"),
+        "email": user["email"],
+    }
+
+
+def public_user(user: dict) -> dict:
+    return {
+        "id": user["id"],
+        "tenant_id": user.get("tenant_id"),
+        "name": user["name"],
+        "email": user["email"],
+        "role": user.get("role", "owner"),
+    }
+
+
 def normalize_sensor_payload(payload: SensorDataUpdate) -> dict:
     """Normalize firmware payloads so backend accepts both flat and nested structures."""
     raw = payload.model_dump(exclude_none=True)
@@ -519,7 +537,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="MMWave Dashboard - API Backend",
-    description="API Server with SQLite for Smart Switch Firmware",
+    description="Tenant-aware API server for Smart Switch Firmware",
     version="2.0",
     lifespan=lifespan,
     docs_url=None if APP_ENV == "production" else "/docs",
@@ -544,7 +562,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_rate_limit_middleware(request: Request, call_next):
-    """Basic IP-based limiter for authentication endpoints."""
+    """Basic IP-based limiter for authentication endpoints plus API hardening headers."""
     if request.url.path in {"/api/auth/login", "/api/auth/register", "/api/auth/refresh"}:
         client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
         if not client_ip and request.client:
@@ -568,7 +586,14 @@ async def auth_rate_limit_middleware(request: Request, call_next):
 
         bucket.append(now)
 
-    return await call_next(request)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if APP_ENV == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
 
 
 # ==================== API ROUTES ====================
@@ -579,7 +604,7 @@ async def root():
     return {
         "message": "MMWave Dashboard - API Backend",
         "version": "2.0",
-        "database": "SQLite",
+        "database": "PostgreSQL via DATABASE_URL, SQLite fallback for local development",
     }
 
 
@@ -623,18 +648,14 @@ async def register(user_data: UserRegister):
         raise HTTPException(status_code=500, detail="Failed to retrieve user data")
     
     # Generate tokens
-    access_token = create_access_token({"user_id": user_id, "email": user_data.email})
-    refresh_token = create_refresh_token({"user_id": user_id, "email": user_data.email})
+    access_token = create_access_token(token_payload_for_user(user))
+    refresh_token = create_refresh_token(token_payload_for_user(user))
     
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        user={
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"]
-        }
+        user=public_user(user)
     )
 
 
@@ -651,18 +672,14 @@ async def login(credentials: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Generate tokens
-    access_token = create_access_token({"user_id": user["id"], "email": user["email"]})
-    refresh_token = create_refresh_token({"user_id": user["id"], "email": user["email"]})
+    access_token = create_access_token(token_payload_for_user(user))
+    refresh_token = create_refresh_token(token_payload_for_user(user))
     
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        user={
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"]
-        }
+        user=public_user(user)
     )
 
 
@@ -674,11 +691,12 @@ async def refresh_token(token_data: RefreshTokenRequest):
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     
+    user = database.get_user_by_id(payload["user_id"])
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
     # Generate new access token
-    access_token = create_access_token({
-        "user_id": payload["user_id"],
-        "email": payload["email"]
-    })
+    access_token = create_access_token(token_payload_for_user(user))
     
     return {"access_token": access_token}
 
@@ -686,10 +704,18 @@ async def refresh_token(token_data: RefreshTokenRequest):
 @app.get("/api/auth/me")
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
+    return public_user(current_user)
+
+
+@app.get("/api/tenant")
+async def get_current_tenant(current_user: dict = Depends(get_current_user)):
+    """Get current tenant/site metadata and members."""
+    tenant = database.get_tenant_for_user(current_user["id"])
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
     return {
-        "id": current_user["id"],
-        "name": current_user["name"],
-        "email": current_user["email"]
+        "tenant": tenant,
+        "members": database.get_tenant_members(current_user["id"]),
     }
 
 
@@ -1297,7 +1323,7 @@ if __name__ == "__main__":
     print("="*60)
     print("\nThis service provides:")
     print("  ✅ FastAPI backend server")
-    print("  ✅ SQLite database storage")
+    print("  ✅ Tenant-aware database storage")
     print("  ✅ Authentication & device management")
     print("="*60 + "\n")
     

@@ -17,4 +17,12 @@ email-validator==2.2.0
 # For file uploads (if needed)
 python-multipart==0.0.20
 
-# SQLite is built into Python, no need to install!
+# Database
+SQLAlchemy==2.0.45
+psycopg2-binary==2.9.11
+alembic==1.17.2
+
+# Tests
+pytest==9.0.2
+
+# SQLite is built into Python and remains the local development fallback.

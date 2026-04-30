@@ -1,19 +1,56 @@
 """
-SQLite Database Module for MMWave Dashboard
-Replaces JSON file storage with SQLite database
+Tenant-aware database layer for the mmWave Dashboard.
+
+Production is driven by DATABASE_URL and is intended for PostgreSQL. When
+DATABASE_URL is not set, the backend keeps the previous SQLite file for local
+development and smoke tests.
 """
 
-import sqlite3
-import json
+import hashlib
 import hmac
+import json
+import os
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-from contextlib import contextmanager
+from typing import Any, Dict, List, Optional
 
-# Database path
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    func,
+    inspect,
+    select,
+    text,
+)
+from sqlalchemy.exc import IntegrityError
+
+
 DB_PATH = Path(__file__).parent / "data" / "mmwave.db"
+DB_PATH.parent.mkdir(exist_ok=True)
+
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+ENGINE_KWARGS: Dict[str, Any] = {"future": True, "pool_pre_ping": True}
+if DATABASE_URL.startswith("sqlite"):
+    ENGINE_KWARGS["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **ENGINE_KWARGS)
+metadata = MetaData()
+
 NOTIFICATION_PROVIDER_CATALOG = {
     "telegram": {
         "name": "Telegram",
@@ -54,430 +91,631 @@ DEFAULT_RETENTION_SETTINGS = {
     "log_limit": 1000,
 }
 
-# Ensure data directory exists
-DB_PATH.parent.mkdir(exist_ok=True)
+
+tenants = Table(
+    "tenants",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", String(120), nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+)
+
+users = Table(
+    "users",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("name", String(100), nullable=False),
+    Column("email", String(255), unique=True, nullable=False),
+    Column("password_hash", Text, nullable=False),
+    Column("role", String(30), server_default="owner", nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+)
+
+tenant_memberships = Table(
+    "tenant_memberships",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("role", String(30), server_default="owner", nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    UniqueConstraint("tenant_id", "user_id", name="uq_tenant_memberships_tenant_user"),
+)
+
+devices = Table(
+    "devices",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("device_id", String(80), unique=True, nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("device_type", String(60), server_default="mmwave_switch", nullable=False),
+    Column("api_key_hash", String(64), unique=True, nullable=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("desired_mode", String(20), server_default="fall", nullable=False),
+    Column("desired_relay", Boolean, server_default=text("false"), nullable=False),
+    Column("relay_mode", String(20), server_default="manual", nullable=False),
+    Column("firmware_version", String(80)),
+    Column("wifi_rssi", Integer),
+    Column("ip_address", String(80)),
+    Column("uptime_seconds", Integer),
+    Column("linked_at", DateTime, server_default=func.now(), nullable=False),
+    Column("last_seen", DateTime),
+)
+
+sensor_data = Table(
+    "sensor_data",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("device_id", String(80), nullable=False),
+    Column("mode", String(20), nullable=False),
+    Column("relay", Boolean, nullable=False),
+    Column("presence", Boolean),
+    Column("activity", Integer),
+    Column("fall_detected", Boolean),
+    Column("respiration", Integer),
+    Column("movement", Integer),
+    Column("sleep_state", String(80)),
+    Column("data_json", Text),
+    Column("timestamp", DateTime, server_default=func.now(), nullable=False),
+)
+
+automations = Table(
+    "automations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("device_id", String(80)),
+    Column("automation_type", String(30), nullable=False),
+    Column("title", String(120), nullable=False),
+    Column("description", Text),
+    Column("active", Boolean, server_default=text("true"), nullable=False),
+    Column("data_json", Text, nullable=False),
+    Column("last_run_at", DateTime),
+    Column("last_run_key", String(40)),
+    Column("run_count", Integer, server_default=text("0"), nullable=False),
+    Column("last_status", String(40)),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+    Column("updated_at", DateTime, server_default=func.now(), nullable=False),
+)
+
+notification_channels = Table(
+    "notification_channels",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("provider", String(50), nullable=False),
+    Column("enabled", Boolean, server_default=text("false"), nullable=False),
+    Column("status", String(30), server_default="disconnected", nullable=False),
+    Column("config_json", Text, server_default="{}", nullable=False),
+    Column("updated_at", DateTime, server_default=func.now(), nullable=False),
+    UniqueConstraint("tenant_id", "provider", name="uq_notification_channels_tenant_provider"),
+)
+
+system_logs = Table(
+    "system_logs",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("device_id", String(80)),
+    Column("event", String(200), nullable=False),
+    Column("log_type", String(30), server_default="info", nullable=False),
+    Column("status", String(40), server_default="Active", nullable=False),
+    Column("metadata_json", Text, server_default="{}", nullable=False),
+    Column("created_at", DateTime, server_default=func.now(), nullable=False),
+)
+
+user_settings = Table(
+    "user_settings",
+    metadata,
+    Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True),
+    Column("setting_key", String(80), nullable=False),
+    Column("value_json", Text, nullable=False),
+    Column("updated_at", DateTime, server_default=func.now(), nullable=False),
+    UniqueConstraint("tenant_id", "setting_key", name="uq_user_settings_tenant_key"),
+)
 
 
-@contextmanager
-def get_db():
-    """Context manager for database connections"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Enable column access by name
+def _row(row) -> Optional[Dict[str, Any]]:
+    return dict(row._mapping) if row else None
+
+
+def _rows(result) -> List[Dict[str, Any]]:
+    return [dict(row._mapping) for row in result]
+
+
+def _json_loads(value: Optional[str], default: Any = None) -> Any:
+    if not value:
+        return default
     try:
-        yield conn
-    finally:
-        conn.close()
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return default
 
 
-def init_database():
-    """Initialize database with schema"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Users table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Devices table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS devices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id TEXT UNIQUE NOT NULL,
-                name TEXT NOT NULL,
-                device_type TEXT DEFAULT 'mmwave_switch',
-                api_key TEXT UNIQUE NOT NULL,
-                user_id INTEGER NOT NULL,
-                desired_mode TEXT DEFAULT 'fall',
-                desired_relay INTEGER DEFAULT 0,
-                relay_mode TEXT DEFAULT 'manual',
-                firmware_version TEXT,
-                wifi_rssi INTEGER,
-                ip_address TEXT,
-                uptime_seconds INTEGER,
-                linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        """)
-        
-        # Sensor data table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sensor_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id TEXT NOT NULL,
-                mode TEXT NOT NULL,
-                relay INTEGER NOT NULL,
-                presence INTEGER,
-                activity INTEGER,
-                fall_detected INTEGER,
-                respiration INTEGER,
-                movement INTEGER,
-                sleep_state TEXT,
-                data_json TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE CASCADE
-            )
-        """)
-
-        # Automations table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS automations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                device_id TEXT,
-                automation_type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT,
-                active INTEGER DEFAULT 1,
-                data_json TEXT NOT NULL,
-                last_run_at TIMESTAMP,
-                last_run_key TEXT,
-                run_count INTEGER DEFAULT 0,
-                last_status TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE CASCADE
-            )
-        """)
-
-        # Notification channel settings table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS notification_channels (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                provider TEXT NOT NULL,
-                enabled INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'disconnected',
-                config_json TEXT DEFAULT '{}',
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, provider),
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        """)
-
-        # System logs table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS system_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                device_id TEXT,
-                event TEXT NOT NULL,
-                log_type TEXT DEFAULT 'info',
-                status TEXT DEFAULT 'Active',
-                metadata_json TEXT DEFAULT '{}',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-                FOREIGN KEY (device_id) REFERENCES devices (device_id) ON DELETE SET NULL
-            )
-        """)
-
-        # User settings table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_settings (
-                user_id INTEGER NOT NULL,
-                setting_key TEXT NOT NULL,
-                value_json TEXT NOT NULL,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (user_id, setting_key),
-                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-            )
-        """)
-        
-        # Create indexes for faster queries
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices (user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices (device_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sensor_data_device_id ON sensor_data (device_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp ON sensor_data (timestamp)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_automations_user_id ON automations (user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_automations_device_id ON automations (device_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notification_channels_user_id ON notification_channels (user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_user_id ON system_logs (user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_device_id ON system_logs (device_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs (created_at)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings (user_id)")
-        
-        # Add migration for last_seen column if it doesn't exist
-        cursor.execute("PRAGMA table_info(devices)")
-        columns = [column['name'] if isinstance(column, dict) else column[1] for column in cursor.fetchall()]
-        if 'last_seen' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN last_seen TIMESTAMP")
-            
-        # Add migration for desired_mode and desired_relay if they don't exist
-        if 'desired_mode' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN desired_mode TEXT DEFAULT 'fall'")
-        if 'desired_relay' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN desired_relay INTEGER DEFAULT 0")
-        if 'relay_mode' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN relay_mode TEXT DEFAULT 'manual'")
-        if 'firmware_version' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN firmware_version TEXT")
-        if 'wifi_rssi' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN wifi_rssi INTEGER")
-        if 'ip_address' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN ip_address TEXT")
-        if 'uptime_seconds' not in columns:
-            cursor.execute("ALTER TABLE devices ADD COLUMN uptime_seconds INTEGER")
-
-        cursor.execute("PRAGMA table_info(automations)")
-        automation_columns = [column['name'] if isinstance(column, dict) else column[1] for column in cursor.fetchall()]
-        if 'last_run_at' not in automation_columns:
-            cursor.execute("ALTER TABLE automations ADD COLUMN last_run_at TIMESTAMP")
-        if 'last_run_key' not in automation_columns:
-            cursor.execute("ALTER TABLE automations ADD COLUMN last_run_key TEXT")
-        if 'run_count' not in automation_columns:
-            cursor.execute("ALTER TABLE automations ADD COLUMN run_count INTEGER DEFAULT 0")
-        if 'last_status' not in automation_columns:
-            cursor.execute("ALTER TABLE automations ADD COLUMN last_status TEXT")
-
-        conn.commit()
-        print(f"✅ Database initialized at {DB_PATH}")
-
-
-# ==================== USER OPERATIONS ====================
-
-def create_user(name: str, email: str, password_hash: str) -> Optional[int]:
-    """Create a new user"""
-    try:
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-                (name, email, password_hash)
-            )
-            conn.commit()
-            return cursor.lastrowid
-    except sqlite3.IntegrityError:
-        return None  # Email already exists
-
-
-def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    """Get user by email"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
-        row = cursor.fetchone()
-        if row:
-            return dict(row)
+def _dt(value: Any) -> Optional[str]:
+    if value is None:
         return None
+    if isinstance(value, datetime):
+        return value.isoformat(sep=" ")
+    return str(value)
 
 
-def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
-    """Get user by ID"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = cursor.fetchone()
-        if row:
-            return dict(row)
-        return None
+def _api_key_hash(api_key: str) -> str:
+    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
 
-# ==================== DEVICE OPERATIONS ====================
-
-def link_device(device_id: str, name: str, user_id: int, device_type: str = 'mmwave_switch') -> Optional[str]:
-    """Link a device to a user and generate API key"""
-    api_key = secrets.token_urlsafe(32)
-    
-    try:
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO devices (device_id, name, device_type, api_key, user_id, desired_mode, desired_relay, relay_mode) VALUES (?, ?, ?, ?, ?, 'fall', 0, 'manual')",
-                (device_id, name, device_type, api_key, user_id)
-            )
-            conn.commit()
-            return api_key
-    except sqlite3.IntegrityError:
-        return None  # Device already linked
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def unlink_device(device_id: str, user_id: int) -> bool:
-    """Unlink a device from a user"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "DELETE FROM devices WHERE device_id = ? AND user_id = ?",
-            (device_id, user_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    return False
+def _tenant_name_for_user(name: str) -> str:
+    return f"{name}'s Site"
 
 
-def _device_status(last_seen_value: Optional[str]) -> Dict[str, Any]:
-    if not last_seen_value:
-        return {"status": "offline", "seconds_since_seen": None, "offline_since": None}
+def _get_user_tenant_id(conn, user_id: int) -> Optional[int]:
+    row = conn.execute(select(users.c.tenant_id).where(users.c.id == user_id)).first()
+    return row[0] if row else None
 
-    last_seen = datetime.fromisoformat(last_seen_value)
-    seconds_since_seen = max(0, int((datetime.utcnow() - last_seen).total_seconds()))
+
+def _require_user_tenant_id(conn, user_id: int) -> int:
+    tenant_id = _get_user_tenant_id(conn, user_id)
+    if not tenant_id:
+        raise ValueError(f"User {user_id} does not have a tenant")
+    return int(tenant_id)
+
+
+def _shape_user(row: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        "status": "online" if seconds_since_seen < 15 else "offline",
-        "seconds_since_seen": seconds_since_seen,
-        "offline_since": None if seconds_since_seen < 15 else last_seen_value,
+        **row,
+        "created_at": _dt(row.get("created_at")),
     }
 
 
-def _shape_device(row: sqlite3.Row) -> Dict[str, Any]:
+def _device_status(last_seen_value: Any) -> Dict[str, Any]:
+    if not last_seen_value:
+        return {"status": "offline", "seconds_since_seen": None, "offline_since": None}
+
+    if isinstance(last_seen_value, datetime):
+        last_seen = last_seen_value
+    else:
+        last_seen = datetime.fromisoformat(str(last_seen_value).replace("Z", "+00:00")).replace(tzinfo=None)
+
+    seconds_since_seen = max(0, int((_utc_now() - last_seen).total_seconds()))
+    return {
+        "status": "online" if seconds_since_seen < 15 else "offline",
+        "seconds_since_seen": seconds_since_seen,
+        "offline_since": None if seconds_since_seen < 15 else _dt(last_seen_value),
+    }
+
+
+def _shape_device(row: Dict[str, Any]) -> Dict[str, Any]:
     device = dict(row)
     device.update(_device_status(device.get("last_seen")))
+    for key in ("linked_at", "last_seen"):
+        device[key] = _dt(device.get(key))
+    device.pop("api_key_hash", None)
     return device
 
 
-def get_user_devices(user_id: int) -> List[Dict[str, Any]]:
-    """Get all devices for a user"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT device_id, name, device_type, desired_mode, desired_relay, relay_mode,
-                   firmware_version, wifi_rssi, ip_address, uptime_seconds, linked_at, last_seen
-            FROM devices
-            WHERE user_id = ?
-            ORDER BY linked_at DESC
-            """,
-            (user_id,)
-        )
-        return [_shape_device(row) for row in cursor.fetchall()]
-    return []
+def _shape_automation(row: Dict[str, Any]) -> Dict[str, Any]:
+    item = dict(row)
+    item["data"] = _json_loads(item.get("data_json"), {})
+    item["active"] = bool(item.get("active", False))
+    for key in ("created_at", "updated_at", "last_run_at"):
+        item[key] = _dt(item.get(key))
+    item.pop("data_json", None)
+    return item
 
 
-def get_device_by_id(device_id: str) -> Optional[Dict[str, Any]]:
-    """Get device by device_id"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM devices WHERE device_id = ?", (device_id,))
-        row = cursor.fetchone()
-        if row:
-            return _shape_device(row)
+def _shape_log(row: Dict[str, Any]) -> Dict[str, Any]:
+    item = dict(row)
+    item["metadata"] = _json_loads(item.get("metadata_json"), {})
+    item["created_at"] = _dt(item.get("created_at"))
+    item.pop("metadata_json", None)
+    return item
+
+
+def _column_names(table_name: str) -> List[str]:
+    return [column["name"] for column in inspect(engine).get_columns(table_name)]
+
+
+def _table_exists(table_name: str) -> bool:
+    return inspect(engine).has_table(table_name)
+
+
+def _execute_ddl(conn, ddl: str) -> None:
+    conn.execute(text(ddl))
+
+
+def _ensure_column(conn, table_name: str, column_name: str, ddl: str) -> None:
+    if not _table_exists(table_name):
+        return
+    if column_name not in _column_names(table_name):
+        _execute_ddl(conn, f"ALTER TABLE {table_name} ADD COLUMN {ddl}")
+
+
+def _ensure_legacy_columns(conn) -> None:
+    """Add columns needed by the tenant-aware layer to existing local DBs."""
+    dialect = engine.dialect.name
+    int_type = "INTEGER"
+    bool_default_false = "BOOLEAN DEFAULT 0"
+    bool_default_true = "BOOLEAN DEFAULT 1"
+    timestamp_type = "TIMESTAMP"
+    if dialect == "postgresql":
+        bool_default_false = "BOOLEAN DEFAULT false"
+        bool_default_true = "BOOLEAN DEFAULT true"
+        timestamp_type = "TIMESTAMP"
+
+    _ensure_column(conn, "users", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "users", "role", "role VARCHAR(30) DEFAULT 'owner'")
+    _ensure_column(conn, "devices", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "devices", "api_key_hash", "api_key_hash VARCHAR(64)")
+    _ensure_column(conn, "devices", "desired_mode", "desired_mode VARCHAR(20) DEFAULT 'fall'")
+    _ensure_column(conn, "devices", "desired_relay", f"desired_relay {bool_default_false}")
+    _ensure_column(conn, "devices", "relay_mode", "relay_mode VARCHAR(20) DEFAULT 'manual'")
+    _ensure_column(conn, "devices", "firmware_version", "firmware_version VARCHAR(80)")
+    _ensure_column(conn, "devices", "wifi_rssi", "wifi_rssi INTEGER")
+    _ensure_column(conn, "devices", "ip_address", "ip_address VARCHAR(80)")
+    _ensure_column(conn, "devices", "uptime_seconds", "uptime_seconds INTEGER")
+    _ensure_column(conn, "devices", "last_seen", f"last_seen {timestamp_type}")
+    _ensure_column(conn, "sensor_data", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "automations", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "automations", "last_run_at", f"last_run_at {timestamp_type}")
+    _ensure_column(conn, "automations", "last_run_key", "last_run_key VARCHAR(40)")
+    _ensure_column(conn, "automations", "run_count", "run_count INTEGER DEFAULT 0")
+    _ensure_column(conn, "automations", "last_status", "last_status VARCHAR(40)")
+    _ensure_column(conn, "notification_channels", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "system_logs", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "user_settings", "tenant_id", f"tenant_id {int_type}")
+
+
+def _migrate_existing_rows(conn) -> None:
+    """Assign legacy rows to tenants and hash existing plaintext device keys."""
+    for user in _rows(conn.execute(select(users))):
+        tenant_id = user.get("tenant_id")
+        if not tenant_id:
+            result = conn.execute(
+                tenants.insert().values(name=_tenant_name_for_user(user["name"]))
+            )
+            tenant_id = result.inserted_primary_key[0]
+            conn.execute(
+                users.update().where(users.c.id == user["id"]).values(tenant_id=tenant_id, role=user.get("role") or "owner")
+            )
+        existing_membership = conn.execute(
+            select(tenant_memberships.c.id).where(
+                tenant_memberships.c.tenant_id == tenant_id,
+                tenant_memberships.c.user_id == user["id"],
+            )
+        ).first()
+        if not existing_membership:
+            conn.execute(
+                tenant_memberships.insert().values(
+                    tenant_id=tenant_id,
+                    user_id=user["id"],
+                    role=user.get("role") or "owner",
+                )
+            )
+
+    if _table_exists("devices"):
+        device_columns = _column_names("devices")
+        for device in _rows(conn.execute(select(devices))):
+            tenant_id = device.get("tenant_id")
+            if not tenant_id and device.get("user_id"):
+                tenant_id = _get_user_tenant_id(conn, device["user_id"])
+            updates: Dict[str, Any] = {}
+            if tenant_id:
+                updates["tenant_id"] = tenant_id
+            if updates:
+                conn.execute(devices.update().where(devices.c.id == device["id"]).values(**updates))
+        if "api_key" in device_columns:
+            legacy_keys = conn.execute(
+                text("SELECT id, api_key FROM devices WHERE api_key_hash IS NULL AND api_key IS NOT NULL")
+            )
+            for row in legacy_keys:
+                conn.execute(
+                    devices.update()
+                    .where(devices.c.id == row._mapping["id"])
+                    .values(api_key_hash=_api_key_hash(row._mapping["api_key"]))
+                )
+
+    for table in (automations, notification_channels, system_logs, user_settings):
+        if not _table_exists(table.name):
+            continue
+        for item in _rows(conn.execute(select(table))):
+            if item.get("tenant_id") or not item.get("user_id"):
+                continue
+            tenant_id = _get_user_tenant_id(conn, item["user_id"])
+            if tenant_id:
+                if "id" in table.c:
+                    conn.execute(table.update().where(table.c.id == item["id"]).values(tenant_id=tenant_id))
+                else:
+                    conn.execute(
+                        table.update()
+                        .where(table.c.user_id == item["user_id"], table.c.setting_key == item["setting_key"])
+                        .values(tenant_id=tenant_id)
+                    )
+
+    if _table_exists("sensor_data"):
+        for item in _rows(conn.execute(select(sensor_data))):
+            if item.get("tenant_id"):
+                continue
+            device = conn.execute(select(devices.c.tenant_id).where(devices.c.device_id == item["device_id"])).first()
+            if device and device[0]:
+                conn.execute(sensor_data.update().where(sensor_data.c.id == item["id"]).values(tenant_id=device[0]))
+
+
+def init_database():
+    """Initialize tables and migrate older local SQLite rows into tenant scope."""
+    metadata.create_all(engine)
+    with engine.begin() as conn:
+        _ensure_legacy_columns(conn)
+        _migrate_existing_rows(conn)
+    stats = get_database_stats()
+    print(f"Database initialized ({stats['database_engine']})")
+
+
+def create_user(name: str, email: str, password_hash: str) -> Optional[int]:
+    """Create a user and its default tenant."""
+    try:
+        with engine.begin() as conn:
+            tenant_result = conn.execute(tenants.insert().values(name=_tenant_name_for_user(name)))
+            tenant_id = tenant_result.inserted_primary_key[0]
+            user_result = conn.execute(
+                users.insert().values(
+                    tenant_id=tenant_id,
+                    name=name,
+                    email=email,
+                    password_hash=password_hash,
+                    role="owner",
+                )
+            )
+            user_id = user_result.inserted_primary_key[0]
+            conn.execute(
+                tenant_memberships.insert().values(tenant_id=tenant_id, user_id=user_id, role="owner")
+            )
+            return int(user_id)
+    except IntegrityError:
         return None
 
 
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    with engine.connect() as conn:
+        row = _row(conn.execute(select(users).where(users.c.email == email)).first())
+        return _shape_user(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+    with engine.connect() as conn:
+        row = _row(conn.execute(select(users).where(users.c.id == user_id)).first())
+        return _shape_user(row) if row else None
+
+
+def get_tenant_for_user(user_id: int) -> Optional[Dict[str, Any]]:
+    with engine.connect() as conn:
+        tenant_id = _get_user_tenant_id(conn, user_id)
+        if not tenant_id:
+            return None
+        row = _row(conn.execute(select(tenants).where(tenants.c.id == tenant_id)).first())
+        if not row:
+            return None
+        row["created_at"] = _dt(row.get("created_at"))
+        return row
+
+
+def get_tenant_members(user_id: int) -> List[Dict[str, Any]]:
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        stmt = (
+            select(
+                users.c.id,
+                users.c.name,
+                users.c.email,
+                tenant_memberships.c.role,
+                tenant_memberships.c.created_at,
+            )
+            .select_from(tenant_memberships.join(users, users.c.id == tenant_memberships.c.user_id))
+            .where(tenant_memberships.c.tenant_id == tenant_id)
+            .order_by(tenant_memberships.c.created_at.asc())
+        )
+        members = []
+        for row in _rows(conn.execute(stmt)):
+            row["created_at"] = _dt(row.get("created_at"))
+            members.append(row)
+        return members
+
+
+def link_device(device_id: str, name: str, user_id: int, device_type: str = "mmwave_switch") -> Optional[str]:
+    api_key = secrets.token_urlsafe(32)
+    try:
+        with engine.begin() as conn:
+            tenant_id = _require_user_tenant_id(conn, user_id)
+            api_key_hash = _api_key_hash(api_key)
+            if "api_key" in _column_names("devices"):
+                # Existing local SQLite databases had a NOT NULL plaintext api_key
+                # column. Keep it populated only for compatibility; all auth reads
+                # use api_key_hash.
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO devices
+                            (tenant_id, device_id, name, device_type, api_key, api_key_hash,
+                             user_id, desired_mode, desired_relay, relay_mode)
+                        VALUES
+                            (:tenant_id, :device_id, :name, :device_type, :api_key, :api_key_hash,
+                             :user_id, 'fall', :desired_relay, 'manual')
+                        """
+                    ),
+                    {
+                        "tenant_id": tenant_id,
+                        "device_id": device_id,
+                        "name": name,
+                        "device_type": device_type,
+                        "api_key": api_key_hash,
+                        "api_key_hash": api_key_hash,
+                        "user_id": user_id,
+                        "desired_relay": False,
+                    },
+                )
+            else:
+                conn.execute(
+                    devices.insert().values(
+                        tenant_id=tenant_id,
+                        device_id=device_id,
+                        name=name,
+                        device_type=device_type,
+                        api_key_hash=api_key_hash,
+                        user_id=user_id,
+                        desired_mode="fall",
+                        desired_relay=False,
+                        relay_mode="manual",
+                    )
+                )
+            return api_key
+    except (IntegrityError, ValueError):
+        return None
+
+
+def unlink_device(device_id: str, user_id: int) -> bool:
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            devices.delete().where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+        )
+        conn.execute(sensor_data.delete().where(sensor_data.c.device_id == device_id, sensor_data.c.tenant_id == tenant_id))
+        return result.rowcount > 0
+
+
+def get_user_devices(user_id: int) -> List[Dict[str, Any]]:
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            select(devices).where(devices.c.tenant_id == tenant_id).order_by(devices.c.linked_at.desc())
+        )
+        return [_shape_device(item) for item in _rows(result)]
+
+
+def get_device_by_id(device_id: str) -> Optional[Dict[str, Any]]:
+    with engine.connect() as conn:
+        row = _row(conn.execute(select(devices).where(devices.c.device_id == device_id)).first())
+        return _shape_device(row) if row else None
+
+
 def get_user_device(device_id: str, user_id: int) -> Optional[Dict[str, Any]]:
-    """Get a device owned by a user."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM devices WHERE device_id = ? AND user_id = ?", (device_id, user_id))
-        row = cursor.fetchone()
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        row = _row(
+            conn.execute(
+                select(devices).where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+            ).first()
+        )
         return _shape_device(row) if row else None
 
 
 def verify_device_key(device_id: str, api_key: str) -> bool:
-    """Verify device API key"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT api_key FROM devices WHERE device_id = ?",
-            (device_id,)
-        )
-        row = cursor.fetchone()
-        if row and hmac.compare_digest(row['api_key'], api_key):
-            return True
+    if not api_key:
         return False
-    return False
+    with engine.connect() as conn:
+        row = conn.execute(select(devices.c.api_key_hash).where(devices.c.device_id == device_id)).first()
+        expected_hash = row[0] if row else None
+        return bool(expected_hash and hmac.compare_digest(expected_hash, _api_key_hash(api_key)))
 
 
 def rotate_device_key(device_id: str, user_id: int) -> Optional[str]:
-    """Generate and persist a new device API key."""
     api_key = secrets.token_urlsafe(32)
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE devices SET api_key = ? WHERE device_id = ? AND user_id = ?",
-            (api_key, device_id, user_id)
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            devices.update()
+            .where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+            .values(api_key_hash=_api_key_hash(api_key))
         )
-        conn.commit()
-        return api_key if cursor.rowcount > 0 else None
+        return api_key if result.rowcount > 0 else None
 
 
 def verify_device_ownership(device_id: str, user_id: int) -> bool:
-    """Verify user owns the device"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT user_id FROM devices WHERE device_id = ?",
-            (device_id,)
-        )
-        row = cursor.fetchone()
-        if row and row['user_id'] == user_id:
-            return True
-        return False
-    return False
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        row = conn.execute(
+            select(devices.c.id).where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+        ).first()
+        return bool(row)
 
 
 def rename_device(device_id: str, new_name: str, user_id: int) -> bool:
-    """Rename a device"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE devices SET name = ? WHERE device_id = ? AND user_id = ?",
-            (new_name, device_id, user_id)
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            devices.update()
+            .where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+            .values(name=new_name)
         )
-        conn.commit()
-        return cursor.rowcount > 0
-    return False
+        return result.rowcount > 0
 
 
 def update_device_health(device_id: str, data: Dict[str, Any]) -> bool:
-    """Store optional telemetry health fields from firmware posts."""
     health = data.get("device_health") if isinstance(data.get("device_health"), dict) else {}
     firmware_version = data.get("firmware_version") or health.get("firmware_version")
     wifi_rssi = data.get("wifi_rssi") if data.get("wifi_rssi") is not None else health.get("wifi_rssi")
     ip_address = data.get("ip_address") or health.get("ip_address")
     uptime_seconds = data.get("uptime_seconds") if data.get("uptime_seconds") is not None else health.get("uptime_seconds")
 
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE devices
-            SET firmware_version = COALESCE(?, firmware_version),
-                wifi_rssi = COALESCE(?, wifi_rssi),
-                ip_address = COALESCE(?, ip_address),
-                uptime_seconds = COALESCE(?, uptime_seconds),
-                last_seen = CURRENT_TIMESTAMP
-            WHERE device_id = ?
-            """,
-            (firmware_version, wifi_rssi, ip_address, uptime_seconds, device_id)
+    with engine.begin() as conn:
+        result = conn.execute(
+            devices.update().where(devices.c.device_id == device_id).values(
+                firmware_version=firmware_version if firmware_version is not None else devices.c.firmware_version,
+                wifi_rssi=wifi_rssi if wifi_rssi is not None else devices.c.wifi_rssi,
+                ip_address=ip_address if ip_address is not None else devices.c.ip_address,
+                uptime_seconds=uptime_seconds if uptime_seconds is not None else devices.c.uptime_seconds,
+                last_seen=_utc_now(),
+            )
         )
-        conn.commit()
-        return cursor.rowcount > 0
+        return result.rowcount > 0
 
 
 def get_user_setting(user_id: int, setting_key: str, default: Any = None) -> Any:
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT value_json FROM user_settings WHERE user_id = ? AND setting_key = ?",
-            (user_id, setting_key)
-        )
-        row = cursor.fetchone()
-        if not row:
-            return default
-        return json.loads(row["value_json"])
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        row = conn.execute(
+            select(user_settings.c.value_json).where(
+                user_settings.c.tenant_id == tenant_id,
+                user_settings.c.setting_key == setting_key,
+            )
+        ).first()
+        return _json_loads(row[0], default) if row else default
 
 
 def set_user_setting(user_id: int, setting_key: str, value: Any) -> bool:
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO user_settings (user_id, setting_key, value_json, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(user_id, setting_key) DO UPDATE SET
-                value_json = excluded.value_json,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (user_id, setting_key, json.dumps(value))
-        )
-        conn.commit()
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        existing = conn.execute(
+            select(user_settings.c.setting_key).where(
+                user_settings.c.tenant_id == tenant_id,
+                user_settings.c.setting_key == setting_key,
+            )
+        ).first()
+        payload = json.dumps(value)
+        if existing:
+            conn.execute(
+                user_settings.update()
+                .where(user_settings.c.tenant_id == tenant_id, user_settings.c.setting_key == setting_key)
+                .values(value_json=payload, updated_at=_utc_now())
+            )
+        else:
+            conn.execute(
+                user_settings.insert().values(
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    setting_key=setting_key,
+                    value_json=payload,
+                )
+            )
         return True
 
 
@@ -503,320 +741,223 @@ def set_retention_settings(user_id: int, sensor_record_limit: int, log_limit: in
 
 def get_device_retention_limit(device_id: str) -> int:
     device = get_device_by_id(device_id)
-    if not device:
+    if not device or not device.get("user_id"):
         return DEFAULT_RETENTION_SETTINGS["sensor_record_limit"]
     return get_retention_settings(device["user_id"])["sensor_record_limit"]
 
 
 def prune_user_data(user_id: int, settings: Optional[Dict[str, int]] = None) -> bool:
     retention = settings or get_retention_settings(user_id)
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT device_id FROM devices WHERE user_id = ?", (user_id,))
-        device_ids = [row["device_id"] for row in cursor.fetchall()]
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        device_ids = [
+            row[0] for row in conn.execute(select(devices.c.device_id).where(devices.c.tenant_id == tenant_id))
+        ]
         for device_id in device_ids:
-            cursor.execute(
-                """
-                DELETE FROM sensor_data
-                WHERE device_id = ?
-                  AND id NOT IN (
-                      SELECT id FROM sensor_data
-                      WHERE device_id = ?
-                      ORDER BY timestamp DESC
-                      LIMIT ?
-                  )
-                """,
-                (device_id, device_id, retention["sensor_record_limit"])
+            ids_to_keep = [
+                row[0]
+                for row in conn.execute(
+                    select(sensor_data.c.id)
+                    .where(sensor_data.c.tenant_id == tenant_id, sensor_data.c.device_id == device_id)
+                    .order_by(sensor_data.c.timestamp.desc())
+                    .limit(retention["sensor_record_limit"])
+                )
+            ]
+            delete_stmt = sensor_data.delete().where(
+                sensor_data.c.tenant_id == tenant_id,
+                sensor_data.c.device_id == device_id,
             )
+            if ids_to_keep:
+                delete_stmt = delete_stmt.where(sensor_data.c.id.not_in(ids_to_keep))
+            conn.execute(delete_stmt)
 
-        cursor.execute(
-            """
-            DELETE FROM system_logs
-            WHERE user_id = ?
-              AND id NOT IN (
-                  SELECT id FROM system_logs
-                  WHERE user_id = ?
-                  ORDER BY created_at DESC
-                  LIMIT ?
-              )
-            """,
-            (user_id, user_id, retention["log_limit"])
-        )
-        conn.commit()
+        log_ids_to_keep = [
+            row[0]
+            for row in conn.execute(
+                select(system_logs.c.id)
+                .where(system_logs.c.tenant_id == tenant_id)
+                .order_by(system_logs.c.created_at.desc())
+                .limit(retention["log_limit"])
+            )
+        ]
+        delete_logs = system_logs.delete().where(system_logs.c.tenant_id == tenant_id)
+        if log_ids_to_keep:
+            delete_logs = delete_logs.where(system_logs.c.id.not_in(log_ids_to_keep))
+        conn.execute(delete_logs)
         return True
 
 
-# ==================== SENSOR DATA OPERATIONS ====================
-
 def save_sensor_data(device_id: str, data: Dict[str, Any]) -> bool:
-    """Save sensor data for a device"""
     try:
-        mode = data.get('mode', 'fall')
-        relay = 1 if data.get('relay', False) else 0
-        sensor_data = data.get('sensor_data', {})
-        
-        # Extract fields
-        presence = 1 if sensor_data.get('presence', False) else 0
-        activity = sensor_data.get('activity', 0)
-        fall_detected = 1 if sensor_data.get('fall_detected', False) else 0
-        
-        # Sleep data
-        sleep = sensor_data.get('sleep')
-        respiration = sleep.get('respiration', 0) if sleep else None
-        movement = sleep.get('movement', 0) if sleep else None
-        sleep_state = sleep.get('sleep_state') if sleep else None
-        
-        # Store full JSON for flexibility
-        data_json = json.dumps(data)
-        
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO sensor_data 
-                (device_id, mode, relay, presence, activity, fall_detected, 
-                 respiration, movement, sleep_state, data_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                device_id, mode, relay, presence, activity, fall_detected,
-                respiration, movement, sleep_state, data_json
-            ))
-            conn.commit()
-            
-            update_device_health(device_id, data)
-            
-            # Keep local storage bounded according to the user's retention setting.
-            retention_limit = get_device_retention_limit(device_id)
-            cursor.execute("""
-                DELETE FROM sensor_data 
-                WHERE device_id = ? 
-                AND id NOT IN (
-                    SELECT id FROM sensor_data 
-                    WHERE device_id = ? 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
+        device = get_device_by_id(device_id)
+        if not device:
+            return False
+        sensor_payload = data.get("sensor_data", {})
+        sleep = sensor_payload.get("sleep") if isinstance(sensor_payload.get("sleep"), dict) else {}
+        with engine.begin() as conn:
+            conn.execute(
+                sensor_data.insert().values(
+                    tenant_id=device.get("tenant_id"),
+                    device_id=device_id,
+                    mode=data.get("mode", "fall"),
+                    relay=bool(data.get("relay", False)),
+                    presence=bool(sensor_payload.get("presence", False)),
+                    activity=sensor_payload.get("activity", 0),
+                    fall_detected=bool(sensor_payload.get("fall_detected", False)),
+                    respiration=sleep.get("respiration"),
+                    movement=sleep.get("movement"),
+                    sleep_state=sleep.get("sleep_state"),
+                    data_json=json.dumps(data),
                 )
-            """, (device_id, device_id, retention_limit))
-            conn.commit()
-            
-            return True
-        return False
-    except Exception as e:
-        print(f"Error saving sensor data: {e}")
+            )
+        update_device_health(device_id, data)
+        if device.get("user_id"):
+            prune_user_data(device["user_id"])
+        return True
+    except Exception as exc:
+        print(f"Error saving sensor data: {exc}")
         return False
 
 
 def get_latest_sensor_data(device_id: str) -> Optional[Dict[str, Any]]:
-    """Get latest sensor data for a device"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT data_json, timestamp 
-            FROM sensor_data 
-            WHERE device_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT 1
-        """, (device_id,))
-        row = cursor.fetchone()
-        
-        if row:
-            data = json.loads(row['data_json'])
-            data['last_updated'] = row['timestamp']
-            return data
-        return None
+    with engine.connect() as conn:
+        row = _row(
+            conn.execute(
+                select(sensor_data.c.data_json, sensor_data.c.timestamp)
+                .where(sensor_data.c.device_id == device_id)
+                .order_by(sensor_data.c.timestamp.desc())
+                .limit(1)
+            ).first()
+        )
+        if not row:
+            return None
+        data = _json_loads(row["data_json"], {})
+        data["last_updated"] = _dt(row["timestamp"])
+        return data
 
 
 def get_sensor_data_history(device_id: str, limit: int = 100) -> List[Dict[str, Any]]:
-    """Get sensor data history for a device"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT data_json, timestamp 
-            FROM sensor_data 
-            WHERE device_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT ?
-        """, (device_id, limit))
-        
-        results = []
-        for row in cursor.fetchall():
-            data = json.loads(row['data_json'])
-            data['timestamp'] = row['timestamp']
-            results.append(data)
-        
-        return results
-    return []
+    with engine.connect() as conn:
+        result = conn.execute(
+            select(sensor_data.c.data_json, sensor_data.c.timestamp)
+            .where(sensor_data.c.device_id == device_id)
+            .order_by(sensor_data.c.timestamp.desc())
+            .limit(limit)
+        )
+        history = []
+        for row in _rows(result):
+            item = _json_loads(row["data_json"], {})
+            item["timestamp"] = _dt(row["timestamp"])
+            history.append(item)
+        return history
 
 
 def update_device_mode(device_id: str, mode: str) -> bool:
-    """Update device mode (stored in devices table as desired_mode)"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE devices SET desired_mode = ? WHERE device_id = ?",
-            (mode, device_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    return False
+    with engine.begin() as conn:
+        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(desired_mode=mode))
+        return result.rowcount > 0
+
 
 def update_device_relay(device_id: str, relay: bool, relay_mode: Optional[str] = None) -> bool:
-    """Update device relay state and optionally its control mode."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        if relay_mode:
-            cursor.execute(
-                "UPDATE devices SET desired_relay = ?, relay_mode = ? WHERE device_id = ?",
-                (1 if relay else 0, relay_mode, device_id)
-            )
-        else:
-            cursor.execute(
-                "UPDATE devices SET desired_relay = ? WHERE device_id = ?",
-                (1 if relay else 0, device_id)
-            )
-        conn.commit()
-        return cursor.rowcount > 0
-    return False
+    values = {"desired_relay": bool(relay)}
+    if relay_mode:
+        values["relay_mode"] = relay_mode
+    with engine.begin() as conn:
+        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(**values))
+        return result.rowcount > 0
+
 
 def update_device_relay_mode(device_id: str, relay_mode: str) -> bool:
-    """Update whether relay is controlled manually or by automations."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE devices SET relay_mode = ? WHERE device_id = ?",
-            (relay_mode, device_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    return False
+    with engine.begin() as conn:
+        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(relay_mode=relay_mode))
+        return result.rowcount > 0
+
 
 def get_device_command(device_id: str) -> Optional[Dict[str, Any]]:
-    """Get pending device command for polling"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT desired_mode, desired_relay, relay_mode FROM devices WHERE device_id = ?",
-            (device_id,)
+    with engine.connect() as conn:
+        row = _row(
+            conn.execute(
+                select(devices.c.desired_mode, devices.c.desired_relay, devices.c.relay_mode).where(devices.c.device_id == device_id)
+            ).first()
         )
-        row = cursor.fetchone()
-        if row:
-            return {
-                "mode": row["desired_mode"] or "fall",
-                "relay": bool(row["desired_relay"]),
-                "relay_mode": row["relay_mode"] or "manual"
-            }
-        return None
+        if not row:
+            return None
+        return {
+            "mode": row["desired_mode"] or "fall",
+            "relay": bool(row["desired_relay"]),
+            "relay_mode": row["relay_mode"] or "manual",
+        }
 
-
-# ==================== AUTOMATION OPERATIONS ====================
 
 def list_automations(user_id: int, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List automations for a user, optionally filtered by device"""
-    with get_db() as conn:
-        cursor = conn.cursor()
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        stmt = select(automations).where(automations.c.tenant_id == tenant_id)
         if device_id:
-            cursor.execute(
-                """
-                SELECT * FROM automations
-                WHERE user_id = ? AND (device_id = ? OR device_id IS NULL)
-                ORDER BY updated_at DESC
-                """,
-                (user_id, device_id)
-            )
-        else:
-            cursor.execute(
-                "SELECT * FROM automations WHERE user_id = ? ORDER BY updated_at DESC",
-                (user_id,)
-            )
-
-        items = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            item["data"] = json.loads(item.get("data_json") or "{}")
-            item["active"] = bool(item.get("active", 0))
-            item.pop("data_json", None)
-            items.append(item)
-        return items
+            stmt = stmt.where((automations.c.device_id == device_id) | (automations.c.device_id.is_(None)))
+        stmt = stmt.order_by(automations.c.updated_at.desc())
+        return [_shape_automation(item) for item in _rows(conn.execute(stmt))]
 
 
 def list_active_device_automations(device_id: str) -> List[Dict[str, Any]]:
-    """List active automations owned by the device user."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT automations.*
-            FROM automations
-            JOIN devices ON devices.user_id = automations.user_id
-            WHERE devices.device_id = ?
-              AND automations.active = 1
-              AND (automations.device_id = ? OR automations.device_id IS NULL)
-            ORDER BY automations.updated_at ASC
-            """,
-            (device_id, device_id)
+    device = get_device_by_id(device_id)
+    if not device:
+        return []
+    with engine.connect() as conn:
+        stmt = (
+            select(automations)
+            .where(
+                automations.c.tenant_id == device["tenant_id"],
+                automations.c.active == True,  # noqa: E712
+                (automations.c.device_id == device_id) | (automations.c.device_id.is_(None)),
+            )
+            .order_by(automations.c.updated_at.asc())
         )
-
-        items = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            item["data"] = json.loads(item.get("data_json") or "{}")
-            item["active"] = bool(item.get("active", 0))
-            item.pop("data_json", None)
-            items.append(item)
-        return items
+        return [_shape_automation(item) for item in _rows(conn.execute(stmt))]
 
 
 def list_due_scheduled_automations(run_key: str) -> List[Dict[str, Any]]:
-    """List active schedule automations that have not run for the current schedule key."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT
-                automations.*,
-                devices.device_id AS target_device_id,
-                devices.user_id AS target_user_id,
-                devices.relay_mode AS target_relay_mode
-            FROM automations
-            JOIN devices
-              ON devices.user_id = automations.user_id
-             AND (automations.device_id = devices.device_id OR automations.device_id IS NULL)
-            WHERE automations.active = 1
-              AND automations.automation_type = 'routine'
-              AND automations.device_id IS NOT NULL
-              AND (automations.last_run_key IS NULL OR automations.last_run_key != ?)
-            ORDER BY automations.updated_at ASC
-            """,
-            (run_key,)
+    with engine.connect() as conn:
+        stmt = (
+            select(
+                automations,
+                devices.c.device_id.label("target_device_id"),
+                devices.c.user_id.label("target_user_id"),
+                devices.c.relay_mode.label("target_relay_mode"),
+            )
+            .select_from(
+                automations.join(
+                    devices,
+                    (devices.c.tenant_id == automations.c.tenant_id)
+                    & ((automations.c.device_id == devices.c.device_id) | (automations.c.device_id.is_(None))),
+                )
+            )
+            .where(
+                automations.c.active == True,  # noqa: E712
+                automations.c.automation_type == "routine",
+                automations.c.device_id.is_not(None),
+                (automations.c.last_run_key.is_(None)) | (automations.c.last_run_key != run_key),
+            )
+            .order_by(automations.c.updated_at.asc())
         )
-
-        items = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            item["data"] = json.loads(item.get("data_json") or "{}")
-            item["active"] = bool(item.get("active", 0))
-            item.pop("data_json", None)
-            items.append(item)
-        return items
+        return [_shape_automation(item) for item in _rows(conn.execute(stmt))]
 
 
 def mark_automation_run(automation_id: int, user_id: int, run_key: str, status: str = "Success") -> bool:
-    """Persist automation execution metadata."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE automations
-            SET last_run_at = CURRENT_TIMESTAMP,
-                last_run_key = ?,
-                run_count = COALESCE(run_count, 0) + 1,
-                last_status = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND user_id = ?
-            """,
-            (run_key, status, automation_id, user_id)
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            automations.update()
+            .where(automations.c.id == automation_id, automations.c.tenant_id == tenant_id)
+            .values(
+                last_run_at=_utc_now(),
+                last_run_key=run_key,
+                run_count=automations.c.run_count + 1,
+                last_status=status,
+                updated_at=_utc_now(),
+            )
         )
-        conn.commit()
-        return cursor.rowcount > 0
+        return result.rowcount > 0
 
 
 def create_automation(
@@ -826,20 +967,23 @@ def create_automation(
     title: str,
     description: str,
     active: bool,
-    payload: Dict[str, Any]
+    payload: Dict[str, Any],
 ) -> Optional[int]:
-    """Create an automation entry"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO automations (user_id, device_id, automation_type, title, description, active, data_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (user_id, device_id, automation_type, title, description, 1 if active else 0, json.dumps(payload))
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            automations.insert().values(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                device_id=device_id,
+                automation_type=automation_type,
+                title=title,
+                description=description,
+                active=active,
+                data_json=json.dumps(payload),
+            )
         )
-        conn.commit()
-        return cursor.lastrowid
+        return int(result.inserted_primary_key[0])
 
 
 def update_automation(
@@ -848,68 +992,62 @@ def update_automation(
     title: str,
     description: str,
     active: bool,
-    payload: Dict[str, Any]
+    payload: Dict[str, Any],
 ) -> bool:
-    """Update an automation entry"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE automations
-            SET title = ?, description = ?, active = ?, data_json = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND user_id = ?
-            """,
-            (title, description, 1 if active else 0, json.dumps(payload), automation_id, user_id)
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            automations.update()
+            .where(automations.c.id == automation_id, automations.c.tenant_id == tenant_id)
+            .values(
+                title=title,
+                description=description,
+                active=active,
+                data_json=json.dumps(payload),
+                updated_at=_utc_now(),
+            )
         )
-        conn.commit()
-        return cursor.rowcount > 0
+        return result.rowcount > 0
 
 
 def delete_automation(automation_id: int, user_id: int) -> bool:
-    """Delete an automation entry"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "DELETE FROM automations WHERE id = ? AND user_id = ?",
-            (automation_id, user_id)
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            automations.delete().where(automations.c.id == automation_id, automations.c.tenant_id == tenant_id)
         )
-        conn.commit()
-        return cursor.rowcount > 0
+        return result.rowcount > 0
 
-
-# ==================== NOTIFICATION OPERATIONS ====================
 
 def get_notification_channels(user_id: int) -> List[Dict[str, Any]]:
-    """Get all notification channel configs for a user"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT provider, enabled, status, config_json, updated_at FROM notification_channels WHERE user_id = ?",
-            (user_id,)
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        rows = _rows(
+            conn.execute(
+                select(
+                    notification_channels.c.provider,
+                    notification_channels.c.enabled,
+                    notification_channels.c.status,
+                    notification_channels.c.config_json,
+                    notification_channels.c.updated_at,
+                ).where(notification_channels.c.tenant_id == tenant_id)
+            )
         )
-        rows = cursor.fetchall()
         by_provider = {}
         for row in rows:
-            item = dict(row)
-            by_provider[item["provider"]] = {
-                "provider": item["provider"],
-                "enabled": bool(item["enabled"]),
-                "status": item["status"],
-                "config": json.loads(item.get("config_json") or "{}"),
-                "updated_at": item["updated_at"]
+            by_provider[row["provider"]] = {
+                "provider": row["provider"],
+                "enabled": bool(row["enabled"]),
+                "status": row["status"],
+                "config": _json_loads(row.get("config_json"), {}),
+                "updated_at": _dt(row.get("updated_at")),
             }
 
         result = []
         for provider in DEFAULT_NOTIFICATION_PROVIDERS:
             item = by_provider.get(
                 provider,
-                {
-                    "provider": provider,
-                    "enabled": False,
-                    "status": "disconnected",
-                    "config": {},
-                    "updated_at": None
-                }
+                {"provider": provider, "enabled": False, "status": "disconnected", "config": {}, "updated_at": None},
             )
             item.update(NOTIFICATION_PROVIDER_CATALOG[provider])
             result.append(item)
@@ -917,7 +1055,6 @@ def get_notification_channels(user_id: int) -> List[Dict[str, Any]]:
 
 
 def get_enabled_notification_channels(user_id: int) -> List[Dict[str, Any]]:
-    """Get enabled notification channels for delivery attempts."""
     return [channel for channel in get_notification_channels(user_id) if channel["enabled"]]
 
 
@@ -926,28 +1063,35 @@ def upsert_notification_channel(
     provider: str,
     enabled: bool,
     status: str,
-    config: Dict[str, Any]
+    config: Dict[str, Any],
 ) -> bool:
-    """Create or update a notification channel configuration"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO notification_channels (user_id, provider, enabled, status, config_json, updated_at)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(user_id, provider) DO UPDATE SET
-                enabled = excluded.enabled,
-                status = excluded.status,
-                config_json = excluded.config_json,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (user_id, provider, 1 if enabled else 0, status, json.dumps(config))
-        )
-        conn.commit()
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        existing = conn.execute(
+            select(notification_channels.c.id).where(
+                notification_channels.c.tenant_id == tenant_id,
+                notification_channels.c.provider == provider,
+            )
+        ).first()
+        values = {
+            "tenant_id": tenant_id,
+            "user_id": user_id,
+            "provider": provider,
+            "enabled": enabled,
+            "status": status,
+            "config_json": json.dumps(config),
+            "updated_at": _utc_now(),
+        }
+        if existing:
+            conn.execute(
+                notification_channels.update()
+                .where(notification_channels.c.id == existing[0])
+                .values(**values)
+            )
+        else:
+            conn.execute(notification_channels.insert().values(**values))
         return True
 
-
-# ==================== SYSTEM LOG OPERATIONS ====================
 
 def create_system_log(
     user_id: int,
@@ -955,131 +1099,95 @@ def create_system_log(
     event: str,
     log_type: str = "info",
     status: str = "Active",
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Optional[int]:
-    """Create a system log entry"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO system_logs (user_id, device_id, event, log_type, status, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (user_id, device_id, event, log_type, status, json.dumps(metadata or {}))
+    with engine.begin() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        result = conn.execute(
+            system_logs.insert().values(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                device_id=device_id,
+                event=event,
+                log_type=log_type,
+                status=status,
+                metadata_json=json.dumps(metadata or {}),
+            )
         )
-        conn.commit()
-        return cursor.lastrowid
+        return int(result.inserted_primary_key[0])
 
 
 def get_system_logs(user_id: int, device_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-    """Get recent system logs for a user"""
-    safe_limit = max(1, min(limit, 200))
-    with get_db() as conn:
-        cursor = conn.cursor()
+    safe_limit = max(1, min(limit, 200000))
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        stmt = select(
+            system_logs.c.id,
+            system_logs.c.device_id,
+            system_logs.c.event,
+            system_logs.c.log_type,
+            system_logs.c.status,
+            system_logs.c.metadata_json,
+            system_logs.c.created_at,
+        ).where(system_logs.c.tenant_id == tenant_id)
         if device_id:
-            cursor.execute(
-                """
-                SELECT id, device_id, event, log_type, status, metadata_json, created_at
-                FROM system_logs
-                WHERE user_id = ? AND device_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (user_id, device_id, safe_limit)
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT id, device_id, event, log_type, status, metadata_json, created_at
-                FROM system_logs
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (user_id, safe_limit)
-            )
-
-        logs = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            item["metadata"] = json.loads(item.get("metadata_json") or "{}")
-            item.pop("metadata_json", None)
-            logs.append(item)
-        return logs
+            stmt = stmt.where(system_logs.c.device_id == device_id)
+        stmt = stmt.order_by(system_logs.c.created_at.desc()).limit(safe_limit)
+        return [_shape_log(row) for row in _rows(conn.execute(stmt))]
 
 
 def get_automation_history(user_id: int, device_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
     safe_limit = max(1, min(limit, 200))
-    with get_db() as conn:
-        cursor = conn.cursor()
+    with engine.connect() as conn:
+        tenant_id = _require_user_tenant_id(conn, user_id)
+        stmt = select(
+            system_logs.c.id,
+            system_logs.c.device_id,
+            system_logs.c.event,
+            system_logs.c.log_type,
+            system_logs.c.status,
+            system_logs.c.metadata_json,
+            system_logs.c.created_at,
+        ).where(system_logs.c.tenant_id == tenant_id, system_logs.c.log_type == "automation")
         if device_id:
-            cursor.execute(
-                """
-                SELECT id, device_id, event, log_type, status, metadata_json, created_at
-                FROM system_logs
-                WHERE user_id = ? AND device_id = ? AND log_type = 'automation'
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (user_id, device_id, safe_limit)
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT id, device_id, event, log_type, status, metadata_json, created_at
-                FROM system_logs
-                WHERE user_id = ? AND log_type = 'automation'
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (user_id, safe_limit)
-            )
-
-        history = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            item["metadata"] = json.loads(item.get("metadata_json") or "{}")
-            item.pop("metadata_json", None)
-            history.append(item)
-        return history
+            stmt = stmt.where(system_logs.c.device_id == device_id)
+        stmt = stmt.order_by(system_logs.c.created_at.desc()).limit(safe_limit)
+        return [_shape_log(row) for row in _rows(conn.execute(stmt))]
 
 
 def get_device_sensor_count(device_id: str) -> int:
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) AS count FROM sensor_data WHERE device_id = ?", (device_id,))
-        return cursor.fetchone()["count"]
+    with engine.connect() as conn:
+        row = conn.execute(
+            select(func.count()).select_from(sensor_data).where(sensor_data.c.device_id == device_id)
+        ).first()
+        return int(row[0] if row else 0)
 
 
 def get_device_health(device_id: str, user_id: int) -> Optional[Dict[str, Any]]:
     device = get_user_device(device_id, user_id)
     if not device:
         return None
-
-    latest = get_latest_sensor_data(device_id)
-    command = get_device_command(device_id)
-    recent_logs = get_system_logs(user_id, device_id=device_id, limit=10)
     return {
         "device": device,
-        "command": command,
-        "latest_data": latest,
+        "command": get_device_command(device_id),
+        "latest_data": get_latest_sensor_data(device_id),
         "sensor_record_count": get_device_sensor_count(device_id),
-        "recent_logs": recent_logs,
+        "recent_logs": get_system_logs(user_id, device_id=device_id, limit=10),
     }
 
 
 def get_diagnostics(user_id: int) -> Dict[str, Any]:
-    devices = get_user_devices(user_id)
+    devices_list = get_user_devices(user_id)
     logs = get_system_logs(user_id, limit=25)
     error_logs = [log for log in logs if (log.get("status") or "").lower() in {"error", "failed"}]
     return {
         "database": get_database_stats(),
         "retention": get_retention_settings(user_id),
         "devices": {
-            "total": len(devices),
-            "online": len([device for device in devices if device.get("status") == "online"]),
-            "offline": len([device for device in devices if device.get("status") != "online"]),
-            "items": devices,
+            "total": len(devices_list),
+            "online": len([device for device in devices_list if device.get("status") == "online"]),
+            "offline": len([device for device in devices_list if device.get("status") != "online"]),
+            "items": devices_list,
         },
         "logs": {
             "recent_count": len(logs),
@@ -1090,78 +1198,68 @@ def get_diagnostics(user_id: int) -> Dict[str, Any]:
 
 def export_user_data(user_id: int, include_secrets: bool = False) -> Dict[str, Any]:
     user = get_user_by_id(user_id)
-    devices = get_user_devices(user_id)
-    with get_db() as conn:
-        cursor = conn.cursor()
-        if include_secrets:
-            cursor.execute("SELECT device_id, api_key FROM devices WHERE user_id = ?", (user_id,))
-            keys_by_device = {row["device_id"]: row["api_key"] for row in cursor.fetchall()}
-            for device in devices:
-                device["api_key"] = keys_by_device.get(device["device_id"])
+    devices_list = get_user_devices(user_id)
+    sensor_history = {
+        device["device_id"]: get_sensor_data_history(device["device_id"], limit=100000)
+        for device in devices_list
+    }
+    notification_channels_list = get_notification_channels(user_id)
+    if not include_secrets:
+        for channel in notification_channels_list:
+            channel["config"] = {
+                key: "***" if value else value for key, value in (channel.get("config") or {}).items()
+            }
 
-        sensor_history = {}
-        for device in devices:
-            sensor_history[device["device_id"]] = get_sensor_data_history(device["device_id"], limit=100000)
+    return {
+        "exported_at": _utc_now().isoformat() + "Z",
+        "include_secrets": include_secrets,
+        "tenant": {
+            "id": user.get("tenant_id") if user else None,
+        },
+        "user": {
+            "id": user["id"],
+            "tenant_id": user.get("tenant_id"),
+            "name": user["name"],
+            "email": user["email"],
+            "role": user.get("role"),
+            "created_at": user["created_at"],
+        } if user else None,
+        "settings": {
+            "retention": get_retention_settings(user_id),
+        },
+        "devices": devices_list,
+        "sensor_history": sensor_history,
+        "automations": list_automations(user_id),
+        "notification_channels": notification_channels_list,
+        "system_logs": get_system_logs(user_id, limit=100000),
+    }
 
-        automations = list_automations(user_id)
-        notification_channels = get_notification_channels(user_id)
-        if not include_secrets:
-            for channel in notification_channels:
-                channel["config"] = {
-                    key: "***" if value else value
-                    for key, value in (channel.get("config") or {}).items()
-                }
-
-        return {
-            "exported_at": datetime.utcnow().isoformat() + "Z",
-            "include_secrets": include_secrets,
-            "user": {
-                "id": user["id"],
-                "name": user["name"],
-                "email": user["email"],
-                "created_at": user["created_at"],
-            } if user else None,
-            "settings": {
-                "retention": get_retention_settings(user_id),
-            },
-            "devices": devices,
-            "sensor_history": sensor_history,
-            "automations": automations,
-            "notification_channels": notification_channels,
-            "system_logs": get_system_logs(user_id, limit=100000),
-        }
-
-
-# ==================== STATISTICS ====================
 
 def get_database_stats() -> Dict[str, Any]:
-    """Get database statistics"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT COUNT(*) as count FROM users")
-        users_count = cursor.fetchone()['count']
-        
-        cursor.execute("SELECT COUNT(*) as count FROM devices")
-        devices_count = cursor.fetchone()['count']
-        
-        cursor.execute("SELECT COUNT(*) as count FROM sensor_data")
-        sensor_data_count = cursor.fetchone()['count']
-        
-        return {
-            "users": users_count,
-            "devices": devices_count,
-            "sensor_records": sensor_data_count,
-            "database_path": str(DB_PATH),
-            "database_size_mb": float(f"{DB_PATH.stat().st_size / (1024 * 1024):.2f}") if DB_PATH.exists() else 0.0
-        }
-    return {}
+    with engine.connect() as conn:
+        users_count = conn.execute(select(func.count()).select_from(users)).scalar_one()
+        tenants_count = conn.execute(select(func.count()).select_from(tenants)).scalar_one()
+        devices_count = conn.execute(select(func.count()).select_from(devices)).scalar_one()
+        sensor_data_count = conn.execute(select(func.count()).select_from(sensor_data)).scalar_one()
+    stats = {
+        "tenants": int(tenants_count),
+        "users": int(users_count),
+        "devices": int(devices_count),
+        "sensor_records": int(sensor_data_count),
+        "database_engine": engine.dialect.name,
+        "database_url_configured": bool(os.getenv("DATABASE_URL")),
+    }
+    if engine.dialect.name == "sqlite":
+        sqlite_path = Path(engine.url.database or DB_PATH)
+        stats.update({
+            "database_path": str(sqlite_path),
+            "database_size_mb": float(f"{sqlite_path.stat().st_size / (1024 * 1024):.2f}") if sqlite_path.exists() else 0.0,
+        })
+    return stats
 
 
-# Initialize database on module import
 if __name__ == "__main__":
     init_database()
-    print("\n📊 Database Statistics:")
-    stats = get_database_stats()
-    for key, value in stats.items():
+    print("\nDatabase Statistics:")
+    for key, value in get_database_stats().items():
         print(f"  {key}: {value}")

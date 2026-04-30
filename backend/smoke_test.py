@@ -79,6 +79,11 @@ def main():
     assert status == 200, "List devices failed"
     print("[OK] Devices")
 
+    status, tenant = request("GET", f"{base}/api/tenant", token=token)
+    assert status == 200 and tenant.get("tenant", {}).get("id"), "Tenant metadata failed"
+    assert tenant.get("members"), "Tenant members missing"
+    print("[OK] Tenant metadata")
+
     device_id = args.device_id or f"SMOKE_{int(time.time())}"
     status, linked = request(
         "POST",

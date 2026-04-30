@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 
 const DeviceContext = createContext(null);
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 export const DeviceProvider = ({ children }) => {

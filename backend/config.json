@@ -3,12 +3,10 @@
   "security": {
     "jwt_secret_key": "",
     "allowed_origins": [
-      "http://localhost:3000"
+      "*"
     ],
     "trusted_hosts": [
-      "localhost",
-      "127.0.0.1",
-      "::1"
+      "*"
     ]
   },
   "server": {

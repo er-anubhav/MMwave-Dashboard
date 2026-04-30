@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import DashboardNavbar from '../components/DashboardNavbar';
 import { motion } from "framer-motion";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 const pageVariants = {

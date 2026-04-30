@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 export const AuthProvider = ({ children }) => {
@@ -20,8 +20,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
-        if (accessToken && config.url?.startsWith(API)) {
-          config.headers.Authorization = `Bearer ${accessToken}`;
+        const token = localStorage.getItem('access_token');
+        if (token && config.url?.startsWith(API)) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
@@ -32,14 +33,15 @@ export const AuthProvider = ({ children }) => {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+        const currentRefreshToken = localStorage.getItem('refresh_token');
 
         // If 401 and we have a refresh token, try to refresh
-        if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
+        if (error.response?.status === 401 && currentRefreshToken && !originalRequest._retry) {
           originalRequest._retry = true;
 
           try {
             const response = await axios.post(`${API}/auth/refresh`, {
-              refresh_token: refreshToken
+              refresh_token: currentRefreshToken
             });
 
             const newAccessToken = response.data.access_token;
@@ -63,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
-  }, [accessToken, refreshToken]);
+  }, []);
 
   // Load user on mount and when tokens change
   useEffect(() => {

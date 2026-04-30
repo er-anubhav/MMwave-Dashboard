@@ -10,6 +10,7 @@ export default function useDeviceData(selectedDevice) {
   const [mode, setMode] = useState("fall");
   const [sensorData, setSensorData] = useState(null);
   const [relayState, setRelayState] = useState(false);
+  const [relayMode, setRelayMode] = useState("manual");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -30,6 +31,7 @@ export default function useDeviceData(selectedDevice) {
         setMode(data.mode);
         setSensorData(data.sensor_data);
         setRelayState(data.relay);
+        setRelayMode(data.relay_mode || "manual");
         setLastUpdated(data.last_updated);
         setIsConnected(true);
       } catch (error) {
@@ -75,9 +77,11 @@ export default function useDeviceData(selectedDevice) {
     try {
       await axios.post(`${API}/relay`, { 
         relay: state,
+        relay_mode: "manual",
         device_id: selectedDevice.device_id
       });
       setRelayState(state);
+      setRelayMode("manual");
       toast.success(`Relay turned ${state ? "ON" : "OFF"}`);
     } catch (error) {
       console.error("Error setting relay:", error);
@@ -85,5 +89,26 @@ export default function useDeviceData(selectedDevice) {
     }
   };
 
-  return { mode, sensorData, relayState, lastUpdated, isConnected, handleModeChange, handleRelayToggle };
+  const handleRelayModeChange = async (newRelayMode) => {
+    if (!selectedDevice) {
+      toast.error("No device selected");
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API}/relay`, {
+        relay: relayState,
+        relay_mode: newRelayMode,
+        device_id: selectedDevice.device_id
+      });
+      setRelayMode(response.data.relay_mode || newRelayMode);
+      setRelayState(response.data.relay);
+      toast.success(newRelayMode === "auto" ? "Relay Auto mode enabled" : "Relay Manual mode enabled");
+    } catch (error) {
+      console.error("Error setting relay mode:", error);
+      toast.error(error.response?.data?.detail || "Failed to change relay mode");
+    }
+  };
+
+  return { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, handleModeChange, handleRelayToggle, handleRelayModeChange };
 }

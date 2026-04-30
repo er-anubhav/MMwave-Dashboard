@@ -64,8 +64,7 @@ export const DeviceProvider = ({ children }) => {
       const response = await axios.post(`${API}/devices/link`, {
         device_id: deviceId,
         name: name,
-        device_type: deviceType,
-        api_key: 'temp-key-123'  // Backend accepts any API key for simulated device
+        device_type: deviceType
       });
 
       await loadDevices();

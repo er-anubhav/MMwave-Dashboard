@@ -445,8 +445,16 @@ Response: [ { device_id, name, linked_at, ... } ]
 
 POST /api/devices/link
 Headers: Authorization: Bearer <token>
-Body: { device_id, api_key, name? }
-Response: { message, device }
+Body: { device_id, name? }
+Response: { message, device_id, api_key, name }
+
+POST /api/devices/{device_id}/rotate-key
+Headers: Authorization: Bearer <token>
+Response: { message, device_id, api_key }
+
+GET /api/devices/{device_id}/health
+Headers: Authorization: Bearer <token>
+Response: { device, command, latest_data, sensor_record_count, recent_logs }
 
 DELETE /api/devices/{device_id}/unlink
 Headers: Authorization: Bearer <token>

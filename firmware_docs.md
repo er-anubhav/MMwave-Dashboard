@@ -356,6 +356,10 @@ Example command:
 
     POST /api/data
 
+Required header:
+
+    X-Device-Key: <api_key>
+
 Recommended payload (canonical nested format):
 
 ``` json
@@ -363,31 +367,40 @@ Recommended payload (canonical nested format):
   "device_id": "switch-A4CF12B98A10",
   "mode": "sleep",
   "relay": true,
-    "sensor_data": {
-        "presence": true,
-        "activity": 3,
-        "fall_detected": false,
-        "sleep": {
-            "respiration": 16,
-            "heart_rate": 72,
-            "sleep_state": "light"
-        }
+  "firmware_version": "1.0.0",
+  "wifi_rssi": -55,
+  "ip_address": "192.168.1.42",
+  "uptime_seconds": 3600,
+  "sensor_data": {
+    "presence": true,
+    "activity": 3,
+    "fall_detected": false,
+    "sleep": {
+      "respiration": 16,
+      "heart_rate": 72,
+      "sleep_state": "light"
+    }
   }
 }
 ```
 
-Compatibility note: Backend also accepts flat payload fields for legacy firmware, but nested sensor_data is preferred.
+Compatibility note: Backend also accepts flat payload fields for legacy firmware, but nested sensor_data is preferred. Device health fields are optional and are shown in the dashboard when present.
 
 ### Command Endpoint
 
         GET /api/command?device_id=<device-id>
+
+Required header:
+
+        X-Device-Key: <api_key>
 
 Example response:
 
 ``` json
 {
   "mode": "sleep",
-  "relay": true
+  "relay": true,
+  "relay_mode": "manual"
 }
 ```
 

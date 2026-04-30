@@ -3,16 +3,6 @@ import { Card } from './ui/card';
 import { CheckCircle2, MoreVertical, Activity, AlertTriangle, Moon, Info } from 'lucide-react';
 
 export default function SystemLogsTable({ logs = [] }) {
- // If no logs are provided, use dummy data
- const defaultLogs = [
- { id: 1, event: 'Fall Detected', type: 'alert', time: '10 mins ago', status: 'Resolved' },
- { id: 2, event: 'System Online', type: 'info', time: '1 hour ago', status: 'Active' },
- { id: 3, event: 'Sleep Mode Engaged', type: 'mode', time: 'Yesterday', status: 'Completed' },
- { id: 4, event: 'Relay Turned ON', type: 'action', time: 'Yesterday', status: 'Success' },
- ];
-
- const displayLogs = logs.length > 0 ? logs : defaultLogs;
-
  const getIcon = (type) => {
  switch (type) {
  case 'alert': return <AlertTriangle className="w-4 h-4 text-red-500" />;
@@ -40,6 +30,9 @@ export default function SystemLogsTable({ logs = [] }) {
  </button>
  </div>
  <div className="p-0 overflow-x-auto">
+ {logs.length === 0 ? (
+ <div className="p-6 text-sm text-gray-500">No system logs yet.</div>
+ ) : (
  <table className="w-full min-w-[640px] table-auto text-left">
  <thead>
  <tr>
@@ -55,8 +48,8 @@ export default function SystemLogsTable({ logs = [] }) {
  </tr>
  </thead>
  <tbody>
- {displayLogs.map((log, key) => {
- const className = `py-4 px-6 ${key === displayLogs.length - 1 ? "" : "border-b border-gray-50"}`;
+ {logs.map((log, key) => {
+ const className = `py-4 px-6 ${key === logs.length - 1 ? "" : "border-b border-gray-50"}`;
 
  return (
  <tr key={log.id} className="hover:bg-white/50 transition-colors group">
@@ -87,6 +80,7 @@ export default function SystemLogsTable({ logs = [] }) {
  })}
  </tbody>
  </table>
+ )}
  </div>
  </Card>
  );

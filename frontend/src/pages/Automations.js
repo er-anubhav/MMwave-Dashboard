@@ -15,7 +15,8 @@ import {
  MoreVertical,
  SlidersHorizontal,
  Activity,
- Trash2
+ Trash2,
+ History
 } from "lucide-react";
 import DashboardNavbar from "../components/DashboardNavbar";
 import { Card, CardContent } from "../components/ui/card";
@@ -104,6 +105,7 @@ export default function Automations() {
  const [rules, setRules] = useState([]);
  const [activeTab, setActiveTab] = useState("routines");
  const [loadingAutomations, setLoadingAutomations] = useState(false);
+ const [automationHistory, setAutomationHistory] = useState([]);
  const [isModalOpen, setIsModalOpen] = useState(false);
  const [editingAutomation, setEditingAutomation] = useState(null);
  const [isSaving, setIsSaving] = useState(false);
@@ -111,8 +113,16 @@ export default function Automations() {
  title: "",
  description: "",
  trigger: "Time is 10:00 PM",
- action: "Set mode to Sleep"
+ action: "Set mode to Sleep",
+ cooldownSeconds: 60
  });
+
+ const formatLastRun = (value) => {
+ if (!value) {
+ return "Never run";
+ }
+ return new Date(value).toLocaleString();
+ };
 
  const loadAutomations = async () => {
  if (!selectedDevice) {
@@ -123,9 +133,14 @@ export default function Automations() {
 
  setLoadingAutomations(true);
  try {
- const response = await axios.get(`${API}/automations`, {
+ const [response, historyResponse] = await Promise.all([
+ axios.get(`${API}/automations`, {
  params: { device_id: selectedDevice.device_id }
- });
+ }),
+ axios.get(`${API}/automations/history`, {
+ params: { device_id: selectedDevice.device_id, limit: 10 }
+ })
+ ]);
 
  const items = response.data?.automations || [];
  const mapped = items.map((item) => {
@@ -139,6 +154,9 @@ export default function Automations() {
  condition: item.data?.trigger || ui.secondaryLabel,
  time: item.data?.time || "Not set",
  data: item.data || {},
+ lastRunAt: item.last_run_at,
+ runCount: item.run_count || 0,
+ lastStatus: item.last_status,
  type: item.automation_type,
  color: ui.color,
  icon: ui.icon,
@@ -148,6 +166,7 @@ export default function Automations() {
 
  setRoutines(mapped.filter((item) => item.type === "routine"));
  setRules(mapped.filter((item) => item.type === "rule"));
+ setAutomationHistory(historyResponse.data?.history || []);
  } catch (error) {
  toast.error(error.response?.data?.detail || "Failed to load automations");
  } finally {
@@ -209,7 +228,8 @@ export default function Automations() {
  title: "",
  description: "",
  trigger: "Time is 10:00 PM",
- action: "Set mode to Sleep"
+ action: "Set mode to Sleep",
+ cooldownSeconds: 60
  });
  };
 
@@ -235,6 +255,7 @@ export default function Automations() {
  data: {
  trigger: createForm.trigger,
  action: createForm.action,
+ cooldown_seconds: Number(createForm.cooldownSeconds) || 60,
  tags: automationType === "routine" ? ["Time Constraint", "Relay Control"] : ["Activity Based", "Custom Logic"],
  time: automationType === "routine" ? createForm.trigger.replace("Time is ", "") : "Condition-driven"
  }
@@ -283,7 +304,8 @@ export default function Automations() {
  title: item.title || "",
  description: item.description || "",
  trigger: item.data?.trigger || "Time is 10:00 PM",
- action: item.data?.action || "Set mode to Sleep"
+ action: item.data?.action || "Set mode to Sleep",
+ cooldownSeconds: item.data?.cooldown_seconds || 60
  });
  setIsModalOpen(true);
  };
@@ -367,6 +389,11 @@ export default function Automations() {
  </span>
  </div>
 
+ <div className="mb-5 text-xs text-gray-500">
+ <p>Last run: {formatLastRun(routine.lastRunAt)}</p>
+ <p>Runs: {routine.runCount}{routine.lastStatus ? ` · ${routine.lastStatus}` : ""}</p>
+ </div>
+
  <div className="flex flex-wrap gap-2 pt-4 border-t border-black/5">
  {routine.tags.map((tag, i) => (
  <Badge key={i} variant="secondary" className={` text-xs px-2.5 py-0.5 rounded-md ${routine.active ? 'bg-white/60 text-gray-700' : 'bg-gray-100 text-gray-400'}`}>
@@ -429,6 +456,11 @@ export default function Automations() {
  {rule.description}
  </p>
 
+ <div className="mb-4 text-xs text-gray-500">
+ <p>Last run: {formatLastRun(rule.lastRunAt)}</p>
+ <p>Runs: {rule.runCount}{rule.lastStatus ? ` · ${rule.lastStatus}` : ""}</p>
+ </div>
+
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-auto pt-4 border-t border-black/5">
  <div className="flex flex-wrap gap-2">
  {rule.tags.map((tag, i) => (
@@ -473,6 +505,35 @@ export default function Automations() {
  </TabsContent>
 
  </Tabs>
+
+ <Card className="mt-2 border border-gray-200 bg-white shadow-sm">
+ <CardContent className="p-5">
+ <div className="flex items-center justify-between mb-4">
+ <div className="flex items-center gap-2">
+ <History className="w-4 h-4 text-emerald-600" />
+ <h3 className="text-base text-gray-900">Automation Run History</h3>
+ </div>
+ <Button variant="ghost" size="sm" onClick={loadAutomations}>Refresh</Button>
+ </div>
+ <div className="grid gap-2">
+ {automationHistory.length === 0 ? (
+ <p className="text-sm text-gray-500">No automation runs recorded yet.</p>
+ ) : automationHistory.map((item) => (
+ <div key={item.id} className="flex flex-col gap-1 rounded-lg border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+ <div>
+ <p className="text-sm text-gray-900">{item.event}</p>
+ <p className="text-xs text-gray-500">
+ {(item.metadata?.action || "Action")} {item.metadata?.result ? `· ${item.metadata.result}` : ""}
+ </p>
+ </div>
+ <div className="text-xs text-gray-500">
+ {item.created_at ? new Date(item.created_at).toLocaleString() : "Just now"}
+ </div>
+ </div>
+ ))}
+ </div>
+ </CardContent>
+ </Card>
 
  {/* Mock Modal overlay for UI demo purposes */}
  {isModalOpen && createPortal(
@@ -532,6 +593,17 @@ export default function Automations() {
  <option>Turn Relay ON</option>
  <option>Turn Relay OFF</option>
  </select>
+ </div>
+ <div className="grid gap-2 mb-4">
+ <label className="text-sm text-gray-700">Cooldown seconds</label>
+ <input
+ type="number"
+ min="5"
+ step="5"
+ value={createForm.cooldownSeconds}
+ onChange={(e) => setCreateForm((prev) => ({ ...prev, cooldownSeconds: e.target.value }))}
+ className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+ />
  </div>
 
  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

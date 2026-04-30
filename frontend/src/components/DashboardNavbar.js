@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Activity, Moon, ChevronDown, Settings, LogOut, Link as LinkIcon, User, Bell } from "lucide-react";
+import { Activity, Moon, ChevronDown, Settings, LogOut, Link as LinkIcon, User, Bell, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { useDevice } from "../contexts/DeviceContext";
 import {
@@ -13,10 +14,40 @@ import {
  DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
 export default function DashboardNavbar({ mode, onModeChange, isConnected, lastUpdated, title = "Overview" }) {
  const { user, logout } = useAuth();
  const { devices, selectedDevice, selectDevice } = useDevice();
  const navigate = useNavigate();
+ const [recentNotifications, setRecentNotifications] = useState([]);
+
+ useEffect(() => {
+ let isMounted = true;
+
+ const loadRecentNotifications = async () => {
+ try {
+ const response = await axios.get(`${API}/notifications/history`, {
+ params: selectedDevice ? { device_id: selectedDevice.device_id, limit: 5 } : { limit: 5 }
+ });
+ if (isMounted) {
+ setRecentNotifications(response.data?.notifications || []);
+ }
+ } catch (error) {
+ if (isMounted) {
+ setRecentNotifications([]);
+ }
+ }
+ };
+
+ loadRecentNotifications();
+ const interval = setInterval(loadRecentNotifications, 15000);
+ return () => {
+ isMounted = false;
+ clearInterval(interval);
+ };
+ }, [selectedDevice]);
 
  const handleModeChangeClick = (newMode) => {
  if (typeof onModeChange === 'function') {
@@ -27,6 +58,17 @@ export default function DashboardNavbar({ mode, onModeChange, isConnected, lastU
  const handleLogout = () => {
  logout();
  navigate("/login");
+ };
+
+ const getNotificationTone = (item) => {
+ const severity = item.metadata?.severity;
+ if (severity === "critical") {
+ return "text-red-600 bg-red-500";
+ }
+ if (severity === "test") {
+ return "text-blue-600 bg-blue-500";
+ }
+ return "text-gray-900 bg-emerald-500";
  };
 
  return (
@@ -149,45 +191,45 @@ export default function DashboardNavbar({ mode, onModeChange, isConnected, lastU
  <DropdownMenuTrigger asChild>
  <button className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 text-gray-600 transition-all hover:bg-gray-50">
  <Bell className="w-5 h-5" />
+ {recentNotifications.length > 0 && (
  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border border-white rounded-full"></span>
+ )}
  </button>
  </DropdownMenuTrigger>
  <DropdownMenuContent align="end" className="w-80 rounded-xl bg-white border border-gray-200 shadow-lg p-2 z-[100] mt-2">
  <DropdownMenuLabel className=" text-gray-900 px-2 py-1 flex justify-between items-center">
  <span>Notifications</span>
- <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">3 New</span>
+ <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{recentNotifications.length} Recent</span>
  </DropdownMenuLabel>
  <DropdownMenuSeparator className="bg-gray-100" />
  <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto mt-1">
- <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-700">
- <div className="flex items-center justify-between w-full">
- <span className=" text-sm text-gray-900">Motion Detected</span>
- <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+ {recentNotifications.length === 0 ? (
+ <div className="flex flex-col items-center justify-center gap-2 p-5 text-center text-gray-500">
+ <AlertCircle className="w-5 h-5 text-gray-400" />
+ <span className="text-sm">No notification activity yet</span>
  </div>
- <span className="text-xs text-gray-500 mt-0.5">Living room sensor triggered 2 mins ago</span>
- </DropdownMenuItem>
- <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-700">
+ ) : recentNotifications.map((item) => {
+ const tone = getNotificationTone(item);
+ return (
+ <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-1 p-3 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-700">
  <div className="flex items-center justify-between w-full">
- <span className=" text-sm text-red-600">Fall Detected</span>
- <span className="w-2 h-2 rounded-full bg-red-500"></span>
+ <span className={`text-sm ${tone.split(" ")[0]}`}>{item.event}</span>
+ <span className={`w-2 h-2 rounded-full ${tone.split(" ")[1]}`}></span>
  </div>
- <span className="text-xs text-gray-500 mt-0.5">Critical: Fall detected in bedroom</span>
+ <span className="text-xs text-gray-500 mt-0.5">
+ {(item.metadata?.provider_name || item.metadata?.provider || "Provider")} · {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : "just now"}
+ </span>
  </DropdownMenuItem>
- <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 rounded-lg cursor-pointer hover:bg-gray-50 text-gray-700">
- <div className="flex items-center justify-between w-full">
- <span className=" text-sm text-gray-900">System Update</span>
- <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
- </div>
- <span className="text-xs text-gray-500 mt-0.5">Firmware update available for your devices</span>
- </DropdownMenuItem>
+ );
+ })}
  </div>
  <DropdownMenuSeparator className="bg-gray-100 mb-1" />
  <div className="px-2 pt-1 pb-1 space-y-1">
  <button
  className="w-full text-center text-sm text-emerald-600 hover:text-emerald-700 py-1 transition-colors"
- onClick={() => navigate("/security")}
+ onClick={() => navigate("/notifications")}
  >
- View All Activity
+ View Notification Activity
  </button>
  <button
  className="w-full text-center text-sm text-gray-500 hover:text-gray-900 py-1 transition-colors flex items-center justify-center gap-1 border-t border-gray-50 mt-1 pt-1.5"

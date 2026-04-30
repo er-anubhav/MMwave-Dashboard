@@ -1,271 +1,206 @@
-# Backend - mmWave Smart Switch Dashboard (SQLite Edition)
+# Backend - mmWave Smart Switch Dashboard
 
 ## Overview
 
-This is the **all-in-one backend** for the mmWave Smart Switch Dashboard. It combines:
-- ✅ FastAPI web server
-- ✅ JWT authentication  
-- ✅ Device management
-- ✅ SQLite database
-- ✅ Built-in device simulator
+FastAPI backend for the mmWave ESP32 dashboard. It provides:
 
-**One file runs everything!** No separate services or simulator needed.
-
-## 🎯 Features
-
-- **Multi-User Authentication:** JWT-based authentication with bcrypt password hashing
-- **Multi-Device Support:** Users can link and manage multiple devices
-- **SQLite Database:** Proper relational database with indexes
-- **Built-in Simulator:** Simulates ESP32 device sending sensor data
-- **RESTful API:** Complete endpoints for frontend and devices
-- **Real-time Data:** Sensor data handling (presence, activity, fall detection, sleep tracking)
-- **Relay & Mode Control:** Per-device relay and mode management
-- **CORS Support:** Cross-origin requests for React frontend
+- JWT authentication
+- Device linking and management
+- ESP32 sensor data ingestion
+- Relay and radar mode commands for firmware polling
+- Automations
+- Notification settings and notification activity
+- SQLite storage
 
 ## Prerequisites
 
 - Python 3.8 or higher
-- pip (Python package manager)
+- pip
 
 ## Installation
 
-1. **Navigate to the backend directory:**
-   ```bash
-   cd backend
-   ```
+```bash
+cd backend
+python3 -m venv venv
+./venv/bin/pip install -r requirements_sqlite.txt
+```
 
-2. **Install required packages:**
-   ```bash
-   pip install -r requirements_sqlite.txt
-   ```
+## Runtime Configuration
 
-## Running the Backend
+Most backend settings live in [config.json](/home/anubhavtripathi/Documents/Projects/mmwave-Dashboard/backend/config.json), so deployment values can be changed without editing Python code.
 
-1. **Start the simulated backend:**
-   ```bash
-   python simulated_backend.py
-   ```
+Common fields:
 
-2. The backend will:
-   - Initialize SQLite database automatically
-   - Start API server on `http://localhost:8000`
-   - Launch built-in device simulator
-   - Generate fake sensor data every 2 seconds
+- `security.trusted_hosts`: allowed Host headers
+- `security.allowed_origins`: frontend CORS origins
+- `security.jwt_secret_key`: JWT signing secret
+- `server.host` and `server.port`: API bind settings
+- `auth_rate_limit.window_seconds` and `auth_rate_limit.max_requests`: auth endpoint limits
+- `ble_provisioning.*`: ESP32 BLE provisioning UUIDs and advertised name prefixes
 
-3. Access the interactive API documentation at `http://localhost:8000/docs`
+Environment variables override `config.json`, which is useful for production secrets or containers. Set `BACKEND_CONFIG_PATH` to point at a different JSON config file.
 
-**That's it!** No need to run separate services.
+For production:
+
+- Set `APP_ENV=production`.
+- Set `JWT_SECRET_KEY` to a strong random value with at least 32 characters.
+- Set `ALLOWED_ORIGINS` to the deployed frontend origin, not `*`.
+- Set `TRUSTED_HOSTS` to the deployed API hostnames, not `*`.
+- Serve the API behind HTTPS.
+- Back up `backend/data/mmwave.db` or move to a managed database before high-volume use.
+
+When `APP_ENV=production`, interactive API docs and OpenAPI JSON are disabled, weak JWT secrets are rejected, and wildcard CORS/trusted-host settings are rejected.
+
+## Running
+
+```bash
+cd backend
+./venv/bin/python main.py
+```
+
+The API starts on the configured host and port. By default:
+
+- API: `http://localhost:8000`
+- Docs: `http://localhost:8000/docs`
+- Health: `http://localhost:8000/api/health`
 
 ## API Endpoints
 
-### Authentication Endpoints
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login (returns JWT tokens)
-- `POST /api/auth/refresh` - Refresh access token
-- `GET /api/auth/me` - Get current user profile
+### Authentication
 
-### Device Management Endpoints
-- `POST /api/devices/link` - Link a new device to user account
-- `DELETE /api/devices/{device_id}/unlink` - Unlink device
-- `GET /api/devices` - Get all devices linked to user
-- `PUT /api/devices/{device_id}/rename` - Rename device
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
 
-### Sensor Data Endpoints (Require Authentication + Device Selection)
-- `GET /api/data?device_id={device_id}` - Get latest sensor data for device
-- `POST /api/data` - ESP32 sends sensor data (requires X-Device-Key header)
+### Device Management
 
-### Relay Control Endpoints
-- `GET /api/relay?device_id={device_id}` - Get relay status
-- `POST /api/relay` - Set relay status (requires X-Device-Key header)
+- `POST /api/devices/link`
+- `GET /api/devices`
+- `PATCH /api/devices/{device_id}`
+- `PUT /api/devices/{device_id}/rename`
+- `POST /api/devices/{device_id}/rotate-key`
+- `GET /api/devices/{device_id}/health`
+- `DELETE /api/devices/{device_id}/unlink`
 
-### Mode Management Endpoints  
-- `GET /api/mode?device_id={device_id}` - Get current mode
-- `POST /api/mode` - Set mode (requires X-Device-Key header)
+### ESP32 Data And Commands
 
-For complete API documentation with request/response schemas, see [SETUP.md](../SETUP.md#api-reference).
+- `POST /api/data`: ESP32 posts sensor data. Requires `X-Device-Key`.
+- `GET /api/command?device_id={device_id}`: ESP32 polls desired mode, relay state, and relay mode. Requires `X-Device-Key`.
+- `GET /api/data?device_id={device_id}`: dashboard reads latest data
+- `GET /api/data/history?device_id={device_id}`: dashboard reads sensor history
+
+### Relay And Mode
+
+- `GET /api/relay?device_id={device_id}`
+- `POST /api/relay`
+- `GET /api/mode?device_id={device_id}`
+- `POST /api/mode`
+
+### Automations
+
+- `GET /api/automations`
+- `GET /api/automations/history`
+- `POST /api/automations`
+- `PUT /api/automations/{automation_id}`
+- `DELETE /api/automations/{automation_id}`
+
+### Notifications And Logs
+
+- `GET /api/notifications/providers`
+- `PUT /api/notifications/providers/{provider}`
+- `GET /api/notifications/history`
+- `POST /api/notifications/test`
+- `GET /api/logs`
+- `POST /api/logs`
+
+### Public Config
+
+- `GET /api/config/public`: frontend-safe runtime config, currently ESP32 BLE provisioning settings
+
+### Local Operations
+
+- `GET /api/diagnostics`: database, scheduler, device, and recent-error summary
+- `GET /api/backup/export`: JSON export of local account data
+- `GET /api/settings/retention`
+- `PUT /api/settings/retention`
 
 ## Data Storage
 
-v2.0 uses JSON file storage for the MVP:
+SQLite database:
 
-Uses SQLite database for all storage:
-
-```
-backend/data/
-└── mmwave.db           # SQLite database (auto-created)
+```text
+backend/data/mmwave.db
 ```
 
-**Database Schema:**
-- `users` table - User accounts with password hashes
-- `devices` table - Device registrations with API keys
-- `sensor_data` table - Sensor readings with timestamps
+Important tables:
 
-**Features:**
-- ✅ Automatic table creation
-- ✅ Indexed queries for performance
-**All-in-one backend architecture:**
+- `users`
+- `devices`
+- `sensor_data`
+- `automations`
+- `notification_channels`
+- `system_logs`
 
+## ESP32 Integration
+
+Typical firmware flow:
+
+1. Device is linked in the dashboard and receives an API key.
+2. ESP32 stores `device_id`, API key, WiFi credentials, and backend URL.
+3. ESP32 posts readings to `POST /api/data` with `X-Device-Key: <api_key>`.
+4. ESP32 polls `GET /api/command?device_id=...` with `X-Device-Key: <api_key>` to receive desired mode and relay state.
+
+Telemetry can include optional device health fields:
+
+```json
+{
+  "firmware_version": "1.0.0",
+  "wifi_rssi": -55,
+  "ip_address": "192.168.1.42",
+  "uptime_seconds": 3600
+}
 ```
-backend/
-├── simulated_backend.py        # Everything! API + simulator + auth
-├── database.py                 # SQLite operations
-├── requirements_sqlite.txt     # Dependencies
-└── data/
-    └── mmwave.db              # SQLite database (auto-created)
-```
-
-**simulated_backend.py contains:**
-- FastAPI server and routes
-- JWT authentication logic
-- Device management logic
-- Device simulator
-- SQLite integration
-
-**No longer needed - kept for reference only:**
-
-Previous v2.0 used a service-based architecture with separate files. SQLite edition simplifies this into one file.
-
-**Data Flow:**
-```
-┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-│   ESP32      │ ──HTTP──│   Backend    │ ──HTTP──│   Frontend   │
-│  (Hardware)  │◄────────│   (FastAPI)  │◄────────│   (React)    │
-└──────────────┘         └──────────────┘         └──────────────┘
-     │                          │                          │
-     │ POST /api/data           │                          │
-     │ + X-Device-Key           │                          │
-     ├─────────────────────────►│                          │
-     │                          │                          │
-     │ GET /api/mode            │                          │
-     │ + X-Device-Key           │                          │
-     │◄─────────────────────────┤                          │
-     │                          │                          │
-     │                          │    POST /api/auth/login   │
-     │                          │◄─────────────────────────┤
-     │                          │    (JWT tokens)          │
-    Start Backend (includes simulator!)
-```bash
-python simulated_backend.py
-```
-
-The built-in simulator automatically:
-- Generates fake sensor data
-- Updates every 2 seconds
-- Simulates device ID: `SIM_ABC123r complete architecture details, see [ARCHITECTURE.md](../ARCHITECTURE.md).
-
-## Security Features
-
-- ✅ JWT-based authentication with access + refresh tokens  
-- ✅ Bcrypt password hashing (cost factor 12)
-- ✅ Device API keys for hardware authentication
-- ✅ Protected routes with user verification
-- ✅ Token expiration and rotation
-- 🔒 HTTPS recommended for production
 
 ## Testing
 
-### With Simulator
-```bash
-# Terminal 1 - Start backend
-python server.py
+Run backend smoke tests against a running API:
 
-# Terminal 2 - Run simulator
-python esp32_simulator.py
+```bash
+cd backend
+./venv/bin/python smoke_test.py --base-url http://localhost:8000
 ```
 
-### Manual API Testing
-Use the interactive docs at `http://localhost:8000/docs` or tools like Postman/Insomnia.
-
-**Example Test Flow:**
-1. Register a user: `POST /api/auth/register`
-2. Login: `POST /api/auth/login` (get JWT tokens)
-3. Link device: `POST /api/devices/link` (get device API key)
-4. Configure simulator with device ID and API key
-5. Start simulator to send data
-6. View data in frontend with device selector
-
-See [SETUP.md](../SETUP.md#testing) for complete testing procedures.
+Manual testing can be done from `http://localhost:8000/docs`.
 
 ## Troubleshooting
 
-### Port Already in Use
+### Port Already In Use
+
 ```bash
-# Kill process on port 8000 (Windows)
-netstat -ano | findstr :8000
-taskkill /PID <PID> /F
-Open `simulated_backend.py`
-2. Add new route with `@app.get()` or `@app.post()` decorators
-3. Use `current_user: dict = Depends(get_current_user)` for protected routes
-4. Update API documentation (auto-generated from docstrings)
+lsof -iTCP:8000 -sTCP:LISTEN
+```
 
-### Customizing Simulator
-Edit the `DeviceSimulator` class in `simulated_backend.py`:
-- `_generate_fall_data()` - Customize fall detection data
-- `_generate_sleep_data()` - Customize sleep mode data
-- Change update interval (line ~210)
+Stop the conflicting process or change `server.port` in `config.json`.
 
-### Database Operations
-All database functions are in `database.py`:
-- `create_user()`, `get_user_by_email()`
-- `link_device()`, `unlink_device()`
-- `save_sensor_data()`, `get_latest_sensor_data()`
+### CORS Or Trusted Host Errors
 
-### Scaling to PostgreSQL
-When you need to scale:
-1. Install SQLAlchemy and psycopg2
-2. Update `database.py` to use SQLAlchemy ORM
-3. Keep the same function signatures
-4okens expire after 1 hour (access) or 7 days (refresh). Frontend automatically refreshes tokens. For manual testing, obtain new tokens via `/api/auth/login`.
+Update:
 
-### CORS Issues
-If frontend can't connect, ensure CORS is configured properly in server.py. The default allows all origins for development.
-Files
+- `security.allowed_origins`
+- `security.trusted_hosts`
 
-- **simulated_backend.py** - Main backend file (API + simulator)
-- **database.py** - SQLite operations and schema
-- **requirements_sqlite.txt** - Python dependencies
-- **esp32_firmware/** - Optional real ESP32 firmware
+in `config.json`, then restart the backend.
 
-## Related Documentation
+### Database Reset
 
-- [QUICKSTART_SQLITE.md](../QUICKSTART_SQLITE.md) - ⭐ Quick setup guide
-- [README.md](../README.md) - Project overview
-- [IMPLEMENTATION_COMPLETE.md](../IMPLEMENTATION_COMPLETE.md) - What changed
-- [Frontend README](../frontend/README.md) - React app documentation
+Stop the backend, move or delete `backend/data/mmwave.db`, then start the backend again. The schema is recreated automatically.
 
-## Version History
+## Files
 
-### SQLite Edition (Current)
-- All-in-one backend architecture
-- SQLite database storage
-- Built-in device simulator
-- Simpler setup (single file to run)
-- Same features as v2.0
-
-### v2.0
-- Multi-user authentication
-- Multi-device support
-- JSON file storage
-
-### v1.0
-- Single-user, single-device
-- Basic sensor data handling
-- [SETUP.md](../SETUP.md) - Complete setup guide with quick start
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture and design
-- [ESP32_SIMULATOR_README.md](ESP32_SIMULATOR_README.md) - Simulator documentation
-- [Frontend README](../frontend/README.md) - React app documentation
-
-## Version History
-
-### v2.0 (Current)
-- Multi-user authentication with JWT
-- Multi-device support per user
-- Device linking/unlinking
-- Per-device data segregation
-- Device API keys
-- Enhanced security
-
-### v1.0
-- Single-user, single-device
-- Basic sensor data handling
-- Simple relay and mode control
+- `main.py`: FastAPI app and routes
+- `database.py`: SQLite schema and data access
+- `config.py`: runtime config loader
+- `config.json`: editable backend configuration
+- `requirements_sqlite.txt`: Python dependencies
+- `smoke_test.py`: API smoke test

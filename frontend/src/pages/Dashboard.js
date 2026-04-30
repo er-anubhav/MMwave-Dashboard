@@ -26,7 +26,7 @@ const pageTransition = {
 export default function Dashboard() {
  const navigate = useNavigate();
  const { selectedDevice, devices = [] } = useDevice();
- const { mode, sensorData, relayState, lastUpdated, isConnected, handleModeChange, handleRelayToggle } = useDeviceData(selectedDevice);
+ const { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, handleModeChange, handleRelayToggle, handleRelayModeChange } = useDeviceData(selectedDevice);
 
  if (devices.length === 0) {
  return (
@@ -110,10 +110,10 @@ export default function Dashboard() {
  value={mode === "sleep" ? "Sleep Mode" : "Fall Mode"}
  icon={<Settings2 className="w-6 h-6 text-blue-600" />}
  footerLabel={`Relay is ${relayState ? "ON" : "OFF"}`}
- footerValue={mode.toUpperCase()}
+ footerValue={relayMode === "auto" ? "AUTO" : mode.toUpperCase()}
  footerColor="text-blue-600"
  iconBg="bg-blue-50"
- isActive={relayState}
+ isActive={relayState || relayMode === "auto"}
  />
  <StatCard
  title="Heart Rate"
@@ -139,7 +139,7 @@ export default function Dashboard() {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
  <div className="col-span-1 self-start">
- <RelayControl relayState={relayState} onToggle={handleRelayToggle} />
+ <RelayControl relayState={relayState} relayMode={relayMode} onToggle={handleRelayToggle} onModeChange={handleRelayModeChange} />
  </div>
  <div className="col-span-1 lg:col-span-2 grid gap-2 grid-cols-1 md:grid-cols-2">
  <Card className="rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group" onClick={() => navigate("/health")}>

@@ -149,7 +149,7 @@ Recommended retry backoff for network/5xx:
 From backend directory:
 
 ```bash
-/home/anubhavtripathi/Documents/Projects/mmwave-Dashboard/.venv/bin/python smoke_test.py
+./venv/bin/python smoke_test.py --base-url http://localhost:8000
 ```
 
 Expected output includes:
@@ -157,6 +157,10 @@ Expected output includes:
 - `[OK] Health`
 - `[OK] Login`
 - `[OK] Devices`
+- `[OK] Device data rejects missing key`
+- `[OK] Device data with key`
+- `[OK] Device command with key`
+- `[OK] Device health`
 - `[OK] Notifications providers`
 - `[OK] Automations`
 - `[OK] Logs`
@@ -164,5 +168,5 @@ Expected output includes:
 ## 9) Environment Notes
 
 - Backend auth uses JWT for dashboard users.
-- Device endpoints currently authenticate by known `device_id` linkage.
+- Device endpoints authenticate with `device_id` plus `X-Device-Key`.
 - For production, backend env vars are defined in `backend/.env.example`.

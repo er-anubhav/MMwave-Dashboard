@@ -1,3 +1,4 @@
+import secrets
 import asyncio
 import time
 from collections import defaultdict, deque
@@ -82,9 +83,8 @@ class RefreshTokenRequest(BaseModel):
 
 class DeviceLinkRequest(BaseModel):
     device_id: str = Field(..., min_length=5, max_length=50)
-    api_key: Optional[str] = None
     name: Optional[str] = None
-    device_type: str = Field(default='mmwave_switch')
+    device_type: str = Field(default='LYFSense_switch')
 
 
 class DeviceRenameRequest(BaseModel):
@@ -154,7 +154,7 @@ class NotificationProviderUpdateRequest(BaseModel):
 class NotificationTestRequest(BaseModel):
     provider: Optional[str] = None
     device_id: Optional[str] = None
-    message: str = Field(default="Test notification from MMWave Dashboard", min_length=2, max_length=300)
+    message: str = Field(default="Test notification from LYFSense Dashboard", min_length=2, max_length=300)
 
 
 class SystemLogCreateRequest(BaseModel):
@@ -482,19 +482,6 @@ async def get_current_user(authorization: str = Header(None)) -> dict:
     return user
 
 
-def verify_device_auth(device_id: str, x_device_key: Optional[str]) -> bool:
-    """Verify device authentication"""
-    if not x_device_key:
-        raise HTTPException(status_code=401, detail="Device API key required")
-    
-    if not database.verify_device_key(device_id, x_device_key):
-        raise HTTPException(status_code=403, detail="Invalid device credentials")
-    
-    return True
-
-
-
-
 
 # ==================== FASTAPI APP ====================
 
@@ -503,7 +490,7 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler"""
     # Startup
     print("\n" + "="*60)
-    print("🚀 MMWave Dashboard - API Backend Starting")
+    print("🚀 LYFSense Dashboard - API Backend Starting")
     print("="*60)
     
     # Initialize database
@@ -536,7 +523,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="MMWave Dashboard - API Backend",
+    title="LYFSense Dashboard - API Backend",
     description="Tenant-aware API server for Smart Switch Firmware",
     version="2.0",
     lifespan=lifespan,
@@ -602,7 +589,7 @@ async def auth_rate_limit_middleware(request: Request, call_next):
 async def root():
     """Root endpoint"""
     return {
-        "message": "MMWave Dashboard - API Backend",
+        "message": "LYFSense Dashboard - API Backend",
         "version": "2.0",
         "database": "PostgreSQL via DATABASE_URL, SQLite fallback for local development",
     }
@@ -613,7 +600,7 @@ async def health_check():
     """Basic backend health check endpoint"""
     return {
         "status": "ok",
-        "service": "mmwave-backend",
+        "service": "LYFSense-backend",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
@@ -725,7 +712,7 @@ async def get_current_tenant(current_user: dict = Depends(get_current_user)):
 async def link_device(device_data: DeviceLinkRequest, current_user: dict = Depends(get_current_user)):
     """Link a new device to user account"""
     device_name = device_data.name or f"Device {device_data.device_id}"
-    device_type = device_data.device_type or 'mmwave_switch'
+    device_type = device_data.device_type or 'LYFSense_switch'
     
     # Check if device already exists
     existing_device = database.get_device_by_id(device_data.device_id)
@@ -733,9 +720,10 @@ async def link_device(device_data: DeviceLinkRequest, current_user: dict = Depen
         raise HTTPException(status_code=400, detail="Device already linked")
     
     # Link device
-    api_key = database.link_device(device_data.device_id, device_name, current_user["id"], device_type)
+    api_key = secrets.token_urlsafe(32)
+    success = database.link_device(device_data.device_id, device_name, current_user["id"], device_type, api_key)
     
-    if not api_key:
+    if not success:
         raise HTTPException(status_code=500, detail="Failed to link device")
 
     database.create_system_log(
@@ -747,12 +735,7 @@ async def link_device(device_data: DeviceLinkRequest, current_user: dict = Depen
         metadata={"device_name": device_name, "device_type": device_type}
     )
     
-    return {
-        "message": "Device linked successfully",
-        "device_id": device_data.device_id,
-        "api_key": api_key,
-        "name": device_name
-    }
+    return {"message": "Device linked successfully", "device_id": device_data.device_id, "name": device_name, "api_key": api_key}
 
 
 @app.get("/api/devices")
@@ -825,24 +808,7 @@ async def unlink_device_endpoint(device_id: str, current_user: dict = Depends(ge
     return {"message": "Device unlinked successfully"}
 
 
-@app.post("/api/devices/{device_id}/rotate-key")
-async def rotate_device_key_endpoint(device_id: str, current_user: dict = Depends(get_current_user)):
-    """Rotate a device API key. The new key must be provisioned to the device."""
-    if not database.verify_device_ownership(device_id, current_user["id"]):
-        raise HTTPException(status_code=403, detail="Device not found or access denied")
 
-    api_key = database.rotate_device_key(device_id, current_user["id"])
-    if not api_key:
-        raise HTTPException(status_code=500, detail="Failed to rotate device key")
-
-    database.create_system_log(
-        user_id=current_user["id"],
-        device_id=device_id,
-        event="Device API key rotated",
-        log_type="security",
-        status="Success"
-    )
-    return {"message": "Device API key rotated", "device_id": device_id, "api_key": api_key}
 
 
 @app.get("/api/devices/{device_id}/health")
@@ -911,14 +877,11 @@ async def get_sensor_data_history(
 
 
 @app.post("/api/data")
-async def receive_sensor_data(data: SensorDataUpdate, x_device_key: Optional[str] = Header(default=None, alias="X-Device-Key")):
+async def receive_sensor_data(data: SensorDataUpdate):
     """Receive sensor data from device (used by hardware)"""
-    # The firmware docs indicate the device sends device_id in JSON payload
     device = database.get_device_by_id(data.device_id)
     if not device:
-        # In a real system, you might auto-link or reject
         raise HTTPException(status_code=404, detail="Device not found")
-    verify_device_auth(data.device_id, x_device_key)
     
     normalized = normalize_sensor_payload(data)
 
@@ -942,12 +905,11 @@ async def receive_sensor_data(data: SensorDataUpdate, x_device_key: Optional[str
 
 
 @app.get("/api/command")
-async def get_device_command(device_id: str, x_device_key: Optional[str] = Header(default=None, alias="X-Device-Key")):
+async def get_device_command(device_id: str):
     """Firmware device polling endpoint to get current mode and relay state"""
     device = database.get_device_by_id(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    verify_device_auth(device_id, x_device_key)
         
     command = database.get_device_command(device_id)
     if command:
@@ -1088,7 +1050,7 @@ async def export_backup(
     """Export local account data as JSON."""
     payload = database.export_user_data(current_user["id"], include_secrets=include_secrets)
     headers = {
-        "Content-Disposition": 'attachment; filename="mmwave-dashboard-backup.json"'
+        "Content-Disposition": 'attachment; filename="LYFSense-dashboard-backup.json"'
     }
     return JSONResponse(content=payload, headers=headers)
 
@@ -1319,7 +1281,7 @@ async def send_test_notification(
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🎯 Starting MMWave Dashboard CPU Backend")
+    print("🎯 Starting LYFSense Dashboard CPU Backend")
     print("="*60)
     print("\nThis service provides:")
     print("  ✅ FastAPI backend server")
@@ -1333,3 +1295,17 @@ if __name__ == "__main__":
         port=API_PORT,
         log_level="info"
     )
+
+@app.post("/api/devices/{device_id}/rotate-key")
+async def rotate_device_key(device_id: str, current_user: dict = Depends(get_current_user)):
+    # Check if device belongs to user
+    device = database.get_device_by_id(device_id)
+    if not device or device["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    new_key = secrets.token_urlsafe(32)
+    success = database.update_device_key(device_id, new_key)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to rotate key")
+        
+    return {"message": "Key rotated successfully", "api_key": new_key}

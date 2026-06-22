@@ -29,7 +29,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ble_provisioning": {
         "service_uuid": "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
         "rx_characteristic_uuid": "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
-        "device_name_prefixes": ["mmWave", "ESP32"],
+        "device_name_prefixes": ["LYFSense", "ESP32"],
     },
 }
 

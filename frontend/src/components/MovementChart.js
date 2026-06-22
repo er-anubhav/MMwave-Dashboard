@@ -1,21 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 
 export default function MovementChart({ currentMovement }) {
  const [data, setData] = useState([]);
+ const movementRef = useRef(currentMovement);
 
  useEffect(() => {
- // Initialize with 30 data points
- if (data.length === 0) {
- setData(Array(30).fill({ value: 0 }));
- }
-
- // Add new data point
- setData((prevData) => {
- const newData = [...prevData.slice(1), { value: currentMovement }];
- return newData;
- });
+   movementRef.current = currentMovement;
  }, [currentMovement]);
+
+ useEffect(() => {
+   setData(Array.from({ length: 30 }, () => ({ value: 0 })));
+
+   const interval = setInterval(() => {
+     setData((prevData) => {
+       return [...prevData.slice(1), { value: movementRef.current || 0 }];
+     });
+   }, 1000);
+
+   return () => clearInterval(interval);
+ }, []);
 
  return (
  <div className="w-full h-full pb-6">

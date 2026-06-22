@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/api';
 
 const AuthContext = createContext(null);
 
@@ -16,68 +16,16 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('refresh_token');
   });
 
-  // Setup axios interceptor for adding auth header
-  useEffect(() => {
-    const requestInterceptor = axios.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token && config.url?.startsWith(API)) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    const responseInterceptor = axios.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
-        const currentRefreshToken = localStorage.getItem('refresh_token');
-
-        // If 401 and we have a refresh token, try to refresh
-        if (error.response?.status === 401 && currentRefreshToken && !originalRequest._retry) {
-          originalRequest._retry = true;
-
-          try {
-            const response = await axios.post(`${API}/auth/refresh`, {
-              refresh_token: currentRefreshToken
-            });
-
-            const newAccessToken = response.data.access_token;
-            setAccessToken(newAccessToken);
-            localStorage.setItem('access_token', newAccessToken);
-
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-            return axios(originalRequest);
-          } catch (refreshError) {
-            // Refresh failed, logout user
-            logout();
-            return Promise.reject(refreshError);
-          }
-        }
-
-        return Promise.reject(error);
-      }
-    );
-
-    return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-      axios.interceptors.response.eject(responseInterceptor);
-    };
-  }, []);
-
   // Load user on mount and when tokens change
   useEffect(() => {
     const loadUser = async () => {
-      if (accessToken) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
         try {
-          const response = await axios.get(`${API}/auth/me`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-          });
+          const response = await api.get(`/auth/me`);
           setUser(response.data);
         } catch (error) {
-          // Token might be expired; interceptor handles refresh.
+          // api interceptor handles refresh/logout
         }
       }
       setLoading(false);
@@ -88,7 +36,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, name) => {
     try {
-      const response = await axios.post(`${API}/auth/register`, {
+      const response = await api.post(`/auth/register`, {
         email,
         password,
         name
@@ -123,7 +71,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API}/auth/login`, {
+      const response = await api.post(`/auth/login`, {
         email,
         password
       });

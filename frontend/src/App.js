@@ -6,90 +6,48 @@ import HealthSleep from "./pages/HealthSleep";
 import SecurityActivity from "./pages/SecurityActivity";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Settings from "./pages/Settings";
 import DeviceManagement from "./pages/DeviceManagement";
-import Automations from "./pages/Automations";
 import Notifications from "./pages/Notifications";
+import RawData from "./pages/RawData";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DeviceProvider } from "./contexts/DeviceContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { Toaster } from "./components/ui/sonner";
 import Layout from "./components/Layout";
 
 function App() {
   return (
     <div className="App">
-      <AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
         <DeviceProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              
               <Route
-                path="/"
                 element={
                   <ProtectedRoute>
-                    <Layout>
-                      <Dashboard />
-                    </Layout>
+                    <Layout />
                   </ProtectedRoute>
                 }
-              />
-              <Route
-                path="/health"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <HealthSleep />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/automations"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Automations />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/security"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <SecurityActivity />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/devices"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <DeviceManagement />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Notifications />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
+              >
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/health" element={<HealthSleep />} />
+                <Route path="/security" element={<SecurityActivity />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/devices" element={<DeviceManagement />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/raw-data" element={<RawData />} />
+              </Route>
             </Routes>
           </BrowserRouter>
           <Toaster position="bottom-right" />
         </DeviceProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </div>
   );
 }

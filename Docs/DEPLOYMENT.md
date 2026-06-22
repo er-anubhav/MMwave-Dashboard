@@ -24,25 +24,25 @@ Create the database:
 
 ```bash
 sudo -u postgres psql
-CREATE DATABASE mmwave_dashboard;
-CREATE USER mmwave_app WITH PASSWORD 'replace-with-strong-db-password';
-GRANT ALL PRIVILEGES ON DATABASE mmwave_dashboard TO mmwave_app;
+CREATE DATABASE LYFSense_dashboard;
+CREATE USER LYFSense_app WITH PASSWORD 'replace-with-strong-db-password';
+GRANT ALL PRIVILEGES ON DATABASE LYFSense_dashboard TO LYFSense_app;
 \q
 ```
 
 Install backend dependencies:
 
 ```bash
-cd /opt/mmwave-Dashboard/backend
+cd /opt/LYFSense-Dashboard/backend
 python3 -m venv venv
 ./venv/bin/pip install -r requirements_sqlite.txt
 ```
 
-Create `/opt/mmwave-Dashboard/backend/.env`:
+Create `/opt/LYFSense-Dashboard/backend/.env`:
 
 ```env
 APP_ENV=production
-DATABASE_URL=postgresql://mmwave_app:replace-with-strong-db-password@localhost:5432/mmwave_dashboard
+DATABASE_URL=postgresql://LYFSense_app:replace-with-strong-db-password@localhost:5432/LYFSense_dashboard
 JWT_SECRET_KEY=replace-with-strong-32-plus-character-secret
 ALLOWED_ORIGINS=https://app.yourdomain.com
 TRUSTED_HOSTS=api.yourdomain.com
@@ -53,7 +53,7 @@ API_PORT=8000
 Apply migrations:
 
 ```bash
-cd /opt/mmwave-Dashboard
+cd /opt/LYFSense-Dashboard
 set -a
 . ./backend/.env
 set +a
@@ -63,7 +63,7 @@ set +a
 Start once to verify the backend boots:
 
 ```bash
-cd /opt/mmwave-Dashboard/backend
+cd /opt/LYFSense-Dashboard/backend
 set -a
 . ./.env
 set +a
@@ -72,17 +72,17 @@ set +a
 
 ## systemd Service
 
-Create `/etc/systemd/system/mmwave-backend.service`:
+Create `/etc/systemd/system/LYFSense-backend.service`:
 
 ```ini
 [Unit]
-Description=mmWave Dashboard FastAPI Backend
+Description=LYFSense Dashboard FastAPI Backend
 After=network.target postgresql.service
 
 [Service]
-WorkingDirectory=/opt/mmwave-Dashboard/backend
-EnvironmentFile=/opt/mmwave-Dashboard/backend/.env
-ExecStart=/opt/mmwave-Dashboard/backend/venv/bin/python main.py
+WorkingDirectory=/opt/LYFSense-Dashboard/backend
+EnvironmentFile=/opt/LYFSense-Dashboard/backend/.env
+ExecStart=/opt/LYFSense-Dashboard/backend/venv/bin/python main.py
 Restart=always
 RestartSec=5
 User=www-data
@@ -95,15 +95,15 @@ WantedBy=multi-user.target
 Enable it:
 
 ```bash
-sudo chown -R www-data:www-data /opt/mmwave-Dashboard
+sudo chown -R www-data:www-data /opt/LYFSense-Dashboard
 sudo systemctl daemon-reload
-sudo systemctl enable --now mmwave-backend
-sudo systemctl status mmwave-backend
+sudo systemctl enable --now LYFSense-backend
+sudo systemctl status LYFSense-backend
 ```
 
 ## Nginx + HTTPS
 
-Create `/etc/nginx/sites-available/mmwave-api`:
+Create `/etc/nginx/sites-available/LYFSense-api`:
 
 ```nginx
 server {
@@ -123,7 +123,7 @@ server {
 Enable HTTPS:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/mmwave-api /etc/nginx/sites-enabled/mmwave-api
+sudo ln -s /etc/nginx/sites-available/LYFSense-api /etc/nginx/sites-enabled/LYFSense-api
 sudo nginx -t
 sudo systemctl reload nginx
 sudo certbot --nginx -d api.yourdomain.com
@@ -151,13 +151,13 @@ The included `frontend/vercel.json` rewrites all browser routes to `index.html`,
 Daily PostgreSQL backup:
 
 ```bash
-pg_dump "$DATABASE_URL" > /var/backups/mmwave-dashboard-$(date +%F).sql
+pg_dump "$DATABASE_URL" > /var/backups/LYFSense-dashboard-$(date +%F).sql
 ```
 
 Restore:
 
 ```bash
-psql "$DATABASE_URL" < /var/backups/mmwave-dashboard-YYYY-MM-DD.sql
+psql "$DATABASE_URL" < /var/backups/LYFSense-dashboard-YYYY-MM-DD.sql
 ```
 
 Also keep VPS snapshots or managed database backups enabled.
@@ -172,13 +172,13 @@ curl https://api.yourdomain.com/api/config/public
 Run the smoke test against production only with a disposable account/device:
 
 ```bash
-cd /opt/mmwave-Dashboard/backend
+cd /opt/LYFSense-Dashboard/backend
 ./venv/bin/python smoke_test.py --base-url https://api.yourdomain.com --email smoke+prod@example.com
 ```
 
 Run tenant-isolation tests before shipping backend changes:
 
 ```bash
-cd /opt/mmwave-Dashboard
+cd /opt/LYFSense-Dashboard
 ./backend/venv/bin/pytest backend/tests
 ```

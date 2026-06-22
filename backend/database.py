@@ -1,16 +1,14 @@
 """
-Tenant-aware database layer for the mmWave Dashboard.
+Tenant-aware database layer for the LYFSense Dashboard.
 
 Production is driven by DATABASE_URL and is intended for PostgreSQL. When
 DATABASE_URL is not set, the backend keeps the previous SQLite file for local
 development and smoke tests.
 """
 
-import hashlib
-import hmac
+
 import json
 import os
-import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -35,7 +33,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 
 
-DB_PATH = Path(__file__).parent / "data" / "mmwave.db"
+DB_PATH = Path(__file__).parent / "data" / "LYFSense.db"
 DB_PATH.parent.mkdir(exist_ok=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
@@ -130,8 +128,8 @@ devices = Table(
     Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
     Column("device_id", String(80), unique=True, nullable=False),
     Column("name", String(100), nullable=False),
-    Column("device_type", String(60), server_default="mmwave_switch", nullable=False),
-    Column("api_key_hash", String(64), unique=True, nullable=True),
+    Column("device_type", String(60), server_default="LYFSense_switch", nullable=False),
+
     Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     Column("desired_mode", String(20), server_default="fall", nullable=False),
     Column("desired_relay", Boolean, server_default=text("false"), nullable=False),
@@ -247,8 +245,6 @@ def _dt(value: Any) -> Optional[str]:
     return str(value)
 
 
-def _api_key_hash(api_key: str) -> str:
-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
 
 def _utc_now() -> datetime:
@@ -356,7 +352,7 @@ def _ensure_legacy_columns(conn) -> None:
     _ensure_column(conn, "users", "tenant_id", f"tenant_id {int_type}")
     _ensure_column(conn, "users", "role", "role VARCHAR(30) DEFAULT 'owner'")
     _ensure_column(conn, "devices", "tenant_id", f"tenant_id {int_type}")
-    _ensure_column(conn, "devices", "api_key_hash", "api_key_hash VARCHAR(64)")
+
     _ensure_column(conn, "devices", "desired_mode", "desired_mode VARCHAR(20) DEFAULT 'fall'")
     _ensure_column(conn, "devices", "desired_relay", f"desired_relay {bool_default_false}")
     _ensure_column(conn, "devices", "relay_mode", "relay_mode VARCHAR(20) DEFAULT 'manual'")
@@ -414,16 +410,7 @@ def _migrate_existing_rows(conn) -> None:
                 updates["tenant_id"] = tenant_id
             if updates:
                 conn.execute(devices.update().where(devices.c.id == device["id"]).values(**updates))
-        if "api_key" in device_columns:
-            legacy_keys = conn.execute(
-                text("SELECT id, api_key FROM devices WHERE api_key_hash IS NULL AND api_key IS NOT NULL")
-            )
-            for row in legacy_keys:
-                conn.execute(
-                    devices.update()
-                    .where(devices.c.id == row._mapping["id"])
-                    .values(api_key_hash=_api_key_hash(row._mapping["api_key"]))
-                )
+
 
     for table in (automations, notification_channels, system_logs, user_settings):
         if not _table_exists(table.name):
@@ -531,24 +518,19 @@ def get_tenant_members(user_id: int) -> List[Dict[str, Any]]:
         return members
 
 
-def link_device(device_id: str, name: str, user_id: int, device_type: str = "mmwave_switch") -> Optional[str]:
-    api_key = secrets.token_urlsafe(32)
+def link_device(device_id: str, name: str, user_id: int, device_type: str = "LYFSense_switch", api_key: str = "") -> bool:
     try:
         with engine.begin() as conn:
             tenant_id = _require_user_tenant_id(conn, user_id)
-            api_key_hash = _api_key_hash(api_key)
             if "api_key" in _column_names("devices"):
-                # Existing local SQLite databases had a NOT NULL plaintext api_key
-                # column. Keep it populated only for compatibility; all auth reads
-                # use api_key_hash.
                 conn.execute(
                     text(
                         """
                         INSERT INTO devices
-                            (tenant_id, device_id, name, device_type, api_key, api_key_hash,
+                            (tenant_id, device_id, name, device_type, api_key,
                              user_id, desired_mode, desired_relay, relay_mode)
                         VALUES
-                            (:tenant_id, :device_id, :name, :device_type, :api_key, :api_key_hash,
+                            (:tenant_id, :device_id, :name, :device_type, :api_key,
                              :user_id, 'fall', :desired_relay, 'manual')
                         """
                     ),
@@ -557,8 +539,7 @@ def link_device(device_id: str, name: str, user_id: int, device_type: str = "mmw
                         "device_id": device_id,
                         "name": name,
                         "device_type": device_type,
-                        "api_key": api_key_hash,
-                        "api_key_hash": api_key_hash,
+                        "api_key": api_key,
                         "user_id": user_id,
                         "desired_relay": False,
                     },
@@ -570,16 +551,15 @@ def link_device(device_id: str, name: str, user_id: int, device_type: str = "mmw
                         device_id=device_id,
                         name=name,
                         device_type=device_type,
-                        api_key_hash=api_key_hash,
                         user_id=user_id,
                         desired_mode="fall",
                         desired_relay=False,
                         relay_mode="manual",
                     )
                 )
-            return api_key
+            return True
     except (IntegrityError, ValueError):
-        return None
+        return False
 
 
 def unlink_device(device_id: str, user_id: int) -> bool:
@@ -617,26 +597,6 @@ def get_user_device(device_id: str, user_id: int) -> Optional[Dict[str, Any]]:
         )
         return _shape_device(row) if row else None
 
-
-def verify_device_key(device_id: str, api_key: str) -> bool:
-    if not api_key:
-        return False
-    with engine.connect() as conn:
-        row = conn.execute(select(devices.c.api_key_hash).where(devices.c.device_id == device_id)).first()
-        expected_hash = row[0] if row else None
-        return bool(expected_hash and hmac.compare_digest(expected_hash, _api_key_hash(api_key)))
-
-
-def rotate_device_key(device_id: str, user_id: int) -> Optional[str]:
-    api_key = secrets.token_urlsafe(32)
-    with engine.begin() as conn:
-        tenant_id = _require_user_tenant_id(conn, user_id)
-        result = conn.execute(
-            devices.update()
-            .where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
-            .values(api_key_hash=_api_key_hash(api_key))
-        )
-        return api_key if result.rowcount > 0 else None
 
 
 def verify_device_ownership(device_id: str, user_id: int) -> bool:
@@ -1263,3 +1223,14 @@ if __name__ == "__main__":
     print("\nDatabase Statistics:")
     for key, value in get_database_stats().items():
         print(f"  {key}: {value}")
+
+def update_device_key(device_id: str, new_key: str) -> bool:
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE devices SET api_key = :api_key WHERE device_id = :device_id"),
+                {"api_key": new_key, "device_id": device_id}
+            )
+            return True
+    except Exception:
+        return False

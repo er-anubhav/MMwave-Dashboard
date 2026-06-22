@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
-import DashboardNavbar from "../components/DashboardNavbar";
 import StatCard from "../components/ui/StatCard";
 import ChartCard from "../components/ui/ChartCard";
 import ActivityChart from "../components/ActivityChart";
@@ -9,13 +8,13 @@ import SystemLogsTable from "../components/SystemLogsTable";
 import { Card, CardContent } from "../components/ui/card";
 import { LinkIcon, Plus, User, Shield } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
-import axios from "axios";
+import api from "../api/api";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
-const API = `${BACKEND_URL}/api`;
+
+
 
 const pageVariants = {
  initial: { opacity: 0, y: 10 },
@@ -30,9 +29,21 @@ const pageTransition = {
 };
 
 export default function SecurityActivity() {
+  const { setHeaderProps } = useOutletContext();
  const navigate = useNavigate();
  const { selectedDevice, devices = [] } = useDevice();
  const { mode, sensorData, lastUpdated, isConnected, handleModeChange } = useDeviceData(selectedDevice);
+
+
+  useEffect(() => {
+    setHeaderProps({
+      title: "Security & Activity",
+      mode,
+      onModeChange: handleModeChange,
+      isConnected,
+      lastUpdated
+    });
+  }, [mode, handleModeChange, isConnected, lastUpdated, setHeaderProps]);
  const [logs, setLogs] = useState([]);
 
  useEffect(() => {
@@ -43,7 +54,7 @@ export default function SecurityActivity() {
 
  const loadLogs = async () => {
  try {
- const response = await axios.get(`${API}/logs`, {
+ const response = await api.get(`/logs`, {
  params: { device_id: selectedDevice.device_id, limit: 30 }
  });
  const serverLogs = response.data?.logs || [];
@@ -70,19 +81,13 @@ export default function SecurityActivity() {
  if (devices.length === 0) {
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar
- mode={mode}
- onModeChange={handleModeChange}
- isConnected={false}
- lastUpdated={null}
- title="Security & Activity"
- />
+ 
  <main className="py-8">
- <Card className="rounded-xl border border-gray-100 shadow-sm">
+ <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
  <CardContent className="flex flex-col items-center justify-center py-12">
- <LinkIcon className="h-16 w-16 text-gray-300 mb-4" />
- <h3 className="text-base text-gray-900 mb-2">No devices linked</h3>
- <Button onClick={() => navigate("/devices")} className="bg-[#1C1917] hover:bg-[#292524] mt-4">
+ <LinkIcon className="h-16 w-16 text-gray-300 dark:text-primary mb-4" />
+ <h3 className="text-base text-gray-900 dark:text-primary mb-2">No devices linked</h3>
+ <Button onClick={() => navigate("/devices")} className="bg-primary dark:text-black hover:bg-primary/90 mt-4">
  <Plus className="h-4 w-4 mr-2" />
  Go to Device Management
  </Button>
@@ -96,18 +101,12 @@ export default function SecurityActivity() {
  if (!selectedDevice) {
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar
- mode={mode}
- onModeChange={handleModeChange}
- isConnected={false}
- lastUpdated={null}
- title="Security & Activity"
- />
+ 
  <main className="py-8">
- <Card className="rounded-xl border border-gray-100 shadow-sm">
+ <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
  <CardContent className="flex flex-col items-center justify-center py-12">
- <LinkIcon className="h-16 w-16 text-gray-300 mb-4" />
- <h3 className="text-base text-gray-900 mb-2">Select a device</h3>
+ <LinkIcon className="h-16 w-16 text-gray-300 dark:text-primary mb-4" />
+ <h3 className="text-base text-gray-900 dark:text-primary mb-2">Select a device</h3>
  </CardContent>
  </Card>
  </main>
@@ -117,13 +116,7 @@ export default function SecurityActivity() {
 
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar
- mode={mode}
- onModeChange={handleModeChange}
- isConnected={isConnected}
- lastUpdated={lastUpdated}
- title="Security & Activity"
- />
+ 
 
  <main className="">
  <div className="mb-2 grid gap-2 md:grid-cols-2">
@@ -154,7 +147,7 @@ export default function SecurityActivity() {
  title="Activity History"
  subtitle="Real-time movement tracking"
  footerText="just updated"
- chartBg="bg-indigo-50"
+ chartBg="bg-background"
  >
  <ActivityChart currentActivity={sensorData?.activity || 0} />
  </ChartCard>

@@ -34,13 +34,13 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
  };
 
  return (
- <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-[#E7E5E4]">
+ <header className="sticky top-0 z-50 bg-white dark:bg-background/80 backdrop-blur-md border-b border-[#E7E5E4]">
  <div className="container px-6 py-6 mx-auto md:px-12">
  <div className="flex items-center justify-between">
  {/* Logo */}
  <div>
- <h1 className="text-base tracking-tight text-black">
- mmWave Smart Switch
+ <h1 className="text-base tracking-tight text-black dark:text-primary">
+ LYFSense Smart Switch
  </h1>
  <p className="text-sm text-[#78716C] font-mono mt-1">
  {lastUpdated ? `Updated ${formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })}` : "Waiting for data..."}
@@ -99,14 +99,14 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
 
  {/* Mode Toggle */}
  {selectedDevice && (
- <div className="flex border border-[#E7E5E4] bg-white">
+ <div className="flex border border-[#E7E5E4] bg-white dark:bg-background">
  <button
  data-testid="fall-mode-button"
  onClick={() => handleModeChangeClick("fall")}
  className={`flex items-center gap-2 px-6 py-3 transition-colors ${
  mode === "fall" 
- ? "bg-[#1C1917] text-white" 
- : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
+ ? "bg-primary dark:text-black text-white" 
+ : "bg-white dark:bg-background text-[#78716C] hover:bg-[#F5F5F4]"
  }`}
  >
  <Activity size={18} strokeWidth={1.5} />
@@ -117,8 +117,8 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
  onClick={() => handleModeChangeClick("sleep")}
  className={`flex items-center gap-2 px-6 py-3 transition-colors ${
  mode === "sleep" 
- ? "bg-[#1C1917] text-white" 
- : "bg-white text-[#78716C] hover:bg-[#F5F5F4]"
+ ? "bg-primary dark:text-black text-white" 
+ : "bg-white dark:bg-background text-[#78716C] hover:bg-[#F5F5F4]"
  }`}
  >
  <Moon size={18} strokeWidth={1.5} />
@@ -131,7 +131,7 @@ export default function Header({ mode, onModeChange, isConnected, lastUpdated })
  <DropdownMenu>
  <DropdownMenuTrigger asChild>
  <Button variant="ghost" className="gap-2">
- <div className="w-8 h-8 rounded-full bg-[#1C1917] text-white flex items-center justify-center text-sm ">
+ <div className="w-8 h-8 rounded-full bg-primary dark:text-black text-white flex items-center justify-center text-sm">
  {user?.name?.charAt(0).toUpperCase() || "U"}
  </div>
  <ChevronDown size={16} />

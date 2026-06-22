@@ -4,6 +4,106 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global: Reset all border-radii across the entire application ── */
+*, *::before, *::after {
+    border-radius: 0px !important;
+}
+
+/* Also zero the CSS variable used by shadcn components */
+:root, .dark {
+    --radius: 0rem !important;
+}
+
+/* ── Exceptions: Re-enable border-radius ONLY for icons, badges, status dots, and toggles ── */
+.rounded-full,
+.rounded-full::before,
+.rounded-full::after,
+[class*="rounded-full"],
+[class*="rounded-full"]::before,
+[class*="rounded-full"]::after,
+[class*="badge"],
+[class*="Badge"],
+[class*="Badge"]::before,
+[class*="Badge"]::after,
+/* Status indicators & notification dot dimensions */
+.w-2.h-2,
+.w-2\.5.h-2\.5,
+.w-3.h-3,
+/* Icon containers inside cards (e.g. StatCard) */
+.w-12.h-12,
+.w-16.h-16,
+/* User profile & bell icon button wrappers */
+.w-10.h-10 {
+    border-radius: 9999px !important;
+}
+
+/* Restoring icon wrappers/boxes (like StatCard icon boxes) to rounded-squares if preferred, or keep them circle */
+.w-12.h-12,
+.w-16.h-16 {
+    border-radius: 8px !important;
+}
+
+/* Explicitly strip border-radius from all dropdown menus and their items */
+[role="menu"],
+[role="menuitem"],
+[class*="DropdownMenu"],
+[class*="dropdown-menu"],
+[class*="menu-content"],
+[data-radix-menu-content] {
+    border-radius: 0px !important;
+}
+
+/* ── Dark mode: replace all white/light surfaces with dark palette ── */
+.dark .bg-white,
+.dark [class*="bg-white"] {
+    background-color: hsl(160, 30%, 10%) !important;
+}
+
+/* Semi-transparent whites → dark equivalent */
+.dark .bg-white\/50,
+.dark .bg-white\/40,
+.dark .bg-white\/30 {
+    background-color: hsl(160, 30%, 12%) !important;
+}
+
+/* Recharts & SVG chart surfaces */
+.dark .recharts-wrapper,
+.dark .recharts-surface,
+.dark svg.recharts-surface,
+.dark .recharts-cartesian-grid,
+.dark rect.recharts-rectangle,
+.dark .recharts-area,
+.dark .recharts-layer {
+    background-color: transparent !important;
+}
+.dark .recharts-wrapper > .recharts-surface {
+    background: transparent !important;
+}
+
+/* Force chart wrapper backgrounds dark */
+.dark [class*="recharts"] rect[fill="#fff"],
+.dark [class*="recharts"] rect[fill="white"],
+.dark [class*="recharts"] rect[fill="#ffffff"] {
+    fill: hsl(160, 30%, 10%) !important;
+}
+
+/* Icon icon-box whites (heart rate, respiration, etc.) */
+.dark .bg-red-50    { background-color: hsl(0, 30%, 12%)   !important; }
+.dark .bg-orange-50 { background-color: hsl(25, 30%, 12%)  !important; }
+.dark .bg-blue-50   { background-color: hsl(220, 30%, 12%) !important; }
+.dark .bg-indigo-50 { background-color: hsl(240, 30%, 12%) !important; }
+.dark .bg-purple-50 { background-color: hsl(270, 30%, 12%) !important; }
+.dark .bg-pink-50   { background-color: hsl(330, 30%, 12%) !important; }
+.dark .bg-yellow-50 { background-color: hsl(50, 30%, 12%)  !important; }
+.dark .bg-emerald-50 { background-color: hsl(160, 30%, 12%) !important; }
+.dark .bg-gray-50   { background-color: hsl(160, 15%, 10%) !important; }
+.dark .bg-gray-100  { background-color: hsl(160, 15%, 12%) !important; }
+
+/* Light badge colours */
+.dark .bg-emerald-100 { background-color: hsl(160, 30%, 14%) !important; }
+.dark .bg-blue-100    { background-color: hsl(220, 30%, 14%) !important; }
+.dark .bg-red-100     { background-color: hsl(0, 30%, 14%)   !important; }
+
 body {
     margin: 0;
     font-family: 'Montserrat', sans-serif;
@@ -36,7 +136,29 @@ code {
         --border: 214.3 31.8% 91.4%;
         --input: 214.3 31.8% 91.4%;
         --ring: 142.1 76.2% 36.3%;
-        --radius: 0.5rem;
+        --radius: 0rem;
+    }
+
+    .dark {
+        --background: 160 30% 6%;     /* Deepest Green-Black */
+        --foreground: 0 0% 98%;
+        --card: 160 30% 12%;          /* Distinctly lighter card */
+        --card-foreground: 0 0% 98%;
+        --popover: 160 30% 12%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 160 32% 74%;       /* Matched mint — same hue as background */
+        --primary-foreground: 160 30% 5%;
+        --secondary: 160 37% 40%;     /* #408A71 */
+        --secondary-foreground: 0 0% 98%;
+        --muted: 160 30% 20%;
+        --muted-foreground: 160 12% 65%;
+        --accent: 160 35% 25%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 160 30% 18%;        /* Soft border */
+        --input: 160 30% 18%;
+        --ring: 160 32% 74%;
     }
 }
 
@@ -79,4 +201,54 @@ code {
         border-top-color: inherit;
         border-bottom-color: inherit;
     }
+}
+
+/* Custom premium SaaS styles */
+.glass-card {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(229, 227, 225, 0.5);
+}
+
+.dark .glass-card {
+    background: rgba(12, 28, 22, 0.45);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(24, 50, 40, 0.5);
+}
+
+.glow-orb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: plus-lighter;
+}
+
+.dark .glow-orb {
+    opacity: 0.08;
+}
+
+/* Hide default scrollbars but keep functional */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(120, 113, 108, 0.2);
+    border-radius: 10px;
+}
+.dark ::-webkit-scrollbar-thumb {
+    background: rgba(176, 228, 204, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 113, 108, 0.3);
 }

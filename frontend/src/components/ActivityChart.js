@@ -1,21 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 
 export default function ActivityChart({ currentActivity }) {
  const [data, setData] = useState([]);
+ const activityRef = useRef(currentActivity);
 
  useEffect(() => {
- // Initialize with 30 data points
- if (data.length === 0) {
- setData(Array(30).fill({ value: 0 }));
- }
-
- // Add new data point
- setData((prevData) => {
- const newData = [...prevData.slice(1), { value: currentActivity }];
- return newData;
- });
+   activityRef.current = currentActivity;
  }, [currentActivity]);
+
+ useEffect(() => {
+   setData(Array.from({ length: 30 }, () => ({ value: 0 })));
+
+   const interval = setInterval(() => {
+     setData((prevData) => {
+       return [...prevData.slice(1), { value: activityRef.current || 0 }];
+     });
+   }, 1000);
+
+   return () => clearInterval(interval);
+ }, []);
 
  return (
  <div className="w-full h-full pb-6">
@@ -41,7 +45,7 @@ export default function ActivityChart({ currentActivity }) {
  />
  </LineChart>
  </ResponsiveContainer>
- <div className="flex justify-between mt-2 text-sm text-gray-500 px-2 ">
+ <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-zinc-400 px-2">
  <span>30s ago</span>
  <span>Now</span>
  </div>

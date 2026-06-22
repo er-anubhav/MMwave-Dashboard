@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lightweight API smoke test for mmWave backend.
+"""Lightweight API smoke test for LYFSense backend.
 
 Usage:
   python smoke_test.py
@@ -18,8 +18,7 @@ def request(method: str, url: str, payload=None, token: str = None, device_key: 
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    if device_key:
-        headers["X-Device-Key"] = device_key
+
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
 
@@ -91,29 +90,14 @@ def main():
         {
             "device_id": device_id,
             "name": "Smoke Test Device",
-            "device_type": "mmwave_switch",
+            "device_type": "LYFSense_switch",
         },
         token=token,
     )
-    assert status == 200 and linked.get("api_key"), "Device link failed"
-    device_key = linked["api_key"]
+    assert status == 200, "Device link failed"
     print("[OK] Device link")
 
-    try:
-        request(
-            "POST",
-            f"{base}/api/data",
-            {
-                "device_id": device_id,
-                "mode": "fall",
-                "relay": False,
-                "sensor_data": {"presence": True, "activity": 1, "fall_detected": False},
-            },
-        )
-        raise AssertionError("Device data accepted without X-Device-Key")
-    except urllib.error.HTTPError as exc:
-        assert exc.code == 401, "Unauthenticated device data should be rejected"
-    print("[OK] Device data rejects missing key")
+
 
     status, _ = request(
         "POST",
@@ -128,23 +112,19 @@ def main():
             "ip_address": "192.168.1.50",
             "uptime_seconds": 123,
         },
-        device_key=device_key,
     )
-    assert status == 200, "Authenticated device data failed"
-    print("[OK] Device data with key")
+    assert status == 200, "Device data failed"
+    print("[OK] Device data")
 
-    status, command = request("GET", f"{base}/api/command?device_id={device_id}", device_key=device_key)
+    status, command = request("GET", f"{base}/api/command?device_id={device_id}")
     assert status == 200 and "relay_mode" in command, "Device command failed"
-    print("[OK] Device command with key")
+    print("[OK] Device command")
 
     status, health = request("GET", f"{base}/api/devices/{device_id}/health", token=token)
     assert status == 200 and health.get("device", {}).get("firmware_version") == "smoke-1.0.0", "Device health failed"
     print("[OK] Device health")
 
-    status, rotated = request("POST", f"{base}/api/devices/{device_id}/rotate-key", token=token)
-    assert status == 200 and rotated.get("api_key"), "Device key rotation failed"
-    device_key = rotated["api_key"]
-    print("[OK] Device key rotation")
+
 
     status, _ = request("GET", f"{base}/api/notifications/providers", token=token)
     assert status == 200, "Notification providers failed"

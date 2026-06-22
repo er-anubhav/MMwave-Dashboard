@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
+import api from "../api/api";
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
-const API = `${BACKEND_URL}/api`;
 const POLL_INTERVAL = 1000;
 
 export default function useDeviceData(selectedDevice) {
@@ -23,7 +21,7 @@ export default function useDeviceData(selectedDevice) {
 
     const fetchData = async () => {
       try {
-        const response = await axios.get(`${API}/data`, {
+        const response = await api.get(`/data`, {
           params: { device_id: selectedDevice.device_id }
         });
         const data = response.data;
@@ -49,14 +47,14 @@ export default function useDeviceData(selectedDevice) {
     return () => clearInterval(interval);
   }, [selectedDevice]);
 
-  const handleModeChange = async (newMode) => {
+  const handleModeChange = useCallback(async (newMode) => {
     if (!selectedDevice) {
       toast.error("No device selected");
       return;
     }
 
     try {
-      await axios.post(`${API}/mode`, { 
+      await api.post(`/mode`, { 
         mode: newMode,
         device_id: selectedDevice.device_id
       });
@@ -66,16 +64,16 @@ export default function useDeviceData(selectedDevice) {
       console.error("Error setting mode:", error);
       toast.error(error.response?.data?.detail || "Failed to change mode");
     }
-  };
+  }, [selectedDevice]);
 
-  const handleRelayToggle = async (state) => {
+  const handleRelayToggle = useCallback(async (state) => {
     if (!selectedDevice) {
       toast.error("No device selected");
       return;
     }
 
     try {
-      await axios.post(`${API}/relay`, { 
+      await api.post(`/relay`, { 
         relay: state,
         relay_mode: "manual",
         device_id: selectedDevice.device_id
@@ -87,16 +85,16 @@ export default function useDeviceData(selectedDevice) {
       console.error("Error setting relay:", error);
       toast.error("Failed to control relay");
     }
-  };
+  }, [selectedDevice]);
 
-  const handleRelayModeChange = async (newRelayMode) => {
+  const handleRelayModeChange = useCallback(async (newRelayMode) => {
     if (!selectedDevice) {
       toast.error("No device selected");
       return;
     }
 
     try {
-      const response = await axios.post(`${API}/relay`, {
+      const response = await api.post(`/relay`, {
         relay: relayState,
         relay_mode: newRelayMode,
         device_id: selectedDevice.device_id
@@ -108,7 +106,7 @@ export default function useDeviceData(selectedDevice) {
       console.error("Error setting relay mode:", error);
       toast.error(error.response?.data?.detail || "Failed to change relay mode");
     }
-  };
+  }, [selectedDevice, relayState]);
 
   return { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, handleModeChange, handleRelayToggle, handleRelayModeChange };
 }

@@ -1,8 +1,8 @@
-# Backend - mmWave Smart Switch Dashboard
+# Backend - LYFSense Smart Switch Dashboard
 
 ## Overview
 
-FastAPI backend for the mmWave ESP32 dashboard. It provides:
+FastAPI backend for the LYFSense ESP32 dashboard. It provides:
 
 - JWT authentication
 - Device linking and management
@@ -28,7 +28,7 @@ python3 -m venv venv
 
 ## Runtime Configuration
 
-Most backend settings live in [config.json](/home/anubhavtripathi/Documents/Projects/mmwave-Dashboard/backend/config.json), so deployment values can be changed without editing Python code.
+Most backend settings live in [config.json](/home/anubhavtripathi/Documents/Projects/LYFSense-Dashboard/backend/config.json), so deployment values can be changed without editing Python code.
 
 Common fields:
 
@@ -140,7 +140,7 @@ DATABASE_URL=postgresql://...
 Local development fallback:
 
 ```text
-backend/data/mmwave.db
+backend/data/LYFSense.db
 ```
 
 Important tables:
@@ -224,7 +224,7 @@ in `config.json`, then restart the backend.
 
 ### Database Reset
 
-Stop the backend, move or delete `backend/data/mmwave.db`, then start the backend again. The schema is recreated automatically.
+Stop the backend, move or delete `backend/data/LYFSense.db`, then start the backend again. The schema is recreated automatically.
 
 For PostgreSQL development resets, drop and recreate the database, then start the backend so the schema is initialized.
 

@@ -1,22 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip, Legend } from "recharts";
 
 export default function VitalsChart({ currentHeartRate, currentRespiration }) {
  const [data, setData] = useState([]);
+ const vitalsRef = useRef({ heartRate: currentHeartRate, respiration: currentRespiration });
 
  useEffect(() => {
- if (data.length === 0) {
- setData(Array(30).fill({ heartRate: null, respiration: null }));
- }
-
- setData((prevData) => {
- const newData = [...prevData.slice(1), { 
- heartRate: currentHeartRate || null, 
- respiration: currentRespiration || null 
- }];
- return newData;
- });
+   vitalsRef.current = { heartRate: currentHeartRate, respiration: currentRespiration };
  }, [currentHeartRate, currentRespiration]);
+
+ useEffect(() => {
+   setData(Array.from({ length: 30 }, () => ({ heartRate: null, respiration: null })));
+
+   const interval = setInterval(() => {
+     setData((prevData) => {
+       return [
+         ...prevData.slice(1),
+         {
+           heartRate: vitalsRef.current.heartRate || null,
+           respiration: vitalsRef.current.respiration || null
+         }
+       ];
+     });
+   }, 1000);
+
+   return () => clearInterval(interval);
+ }, []);
 
  return (
  <div className="w-full h-full pb-6">
@@ -31,7 +40,7 @@ export default function VitalsChart({ currentHeartRate, currentRespiration }) {
  itemStyle={{ color: '#1C1917' }}
  labelStyle={{ display: 'none' }}
  />
- <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', color: '#fff' }} />
+ <Legend verticalAlign="top" height={36} iconType="circle" formatter={(value) => <span className="text-gray-700 dark:text-zinc-300 font-medium">{value}</span>} wrapperStyle={{ fontSize: '12px' }} />
  <Line 
  type="monotone" 
  dataKey="heartRate" 
@@ -56,7 +65,7 @@ export default function VitalsChart({ currentHeartRate, currentRespiration }) {
  />
  </LineChart>
  </ResponsiveContainer>
- <div className="flex justify-between mt-2 text-sm text-gray-500 px-2 ">
+ <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-zinc-400 px-2">
  <span>30s ago</span>
  <span>Now</span>
  </div>

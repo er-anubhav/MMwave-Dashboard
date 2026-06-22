@@ -1,21 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { BarChart, Bar, ResponsiveContainer, YAxis, Cell } from "recharts";
 
 export default function RespirationGauge({ currentRate }) {
  const [data, setData] = useState([]);
+ const rateRef = useRef(currentRate);
 
  useEffect(() => {
- // Initialize with 20 data points
- if (data.length === 0) {
- setData(Array(20).fill({ value: 0 }));
- }
-
- // Add new data point
- setData((prevData) => {
- const newData = [...prevData.slice(1), { value: currentRate }];
- return newData;
- });
+   rateRef.current = currentRate;
  }, [currentRate]);
+
+ useEffect(() => {
+   setData(Array.from({ length: 20 }, () => ({ value: 0 })));
+
+   const interval = setInterval(() => {
+     setData((prevData) => {
+       return [...prevData.slice(1), { value: rateRef.current || 0 }];
+     });
+   }, 1000);
+
+   return () => clearInterval(interval);
+ }, []);
 
  const getColor = (value) => {
  if (value >= 12 && value <= 18) {
@@ -47,7 +51,7 @@ export default function RespirationGauge({ currentRate }) {
  </Bar>
  </BarChart>
  </ResponsiveContainer>
- <div className="flex justify-between text-sm text-gray-400 ">
+ <div className="flex justify-between text-sm text-gray-400">
  <span>0</span>
  <span>40 bpm</span>
  <div className="flex items-center gap-2">

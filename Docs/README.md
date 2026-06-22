@@ -1,6 +1,6 @@
-# mmWave Dashboard
+# LYFSense Dashboard
 
-Dashboard for ESP32 mmWave smart switch/sensor deployments. The system includes a FastAPI backend, PostgreSQL production storage with SQLite local fallback, a React dashboard, JWT dashboard auth, hashed device API-key auth, tenant isolation, automations, device health, diagnostics, backups, and retention controls.
+Dashboard for ESP32 LYFSense smart switch/sensor deployments. The system includes a FastAPI backend, PostgreSQL production storage with SQLite local fallback, a React dashboard, JWT dashboard auth, hashed device API-key auth, tenant isolation, automations, device health, diagnostics, backups, and retention controls.
 
 ## What Is Included
 
@@ -70,7 +70,7 @@ For SaaS production, use Vercel for the frontend, a VPS for the backend, and Pos
 
 ```env
 APP_ENV=production
-DATABASE_URL=postgresql://mmwave_app:<password>@localhost:5432/mmwave_dashboard
+DATABASE_URL=postgresql://LYFSense_app:<password>@localhost:5432/LYFSense_dashboard
 JWT_SECRET_KEY=<strong-32-plus-character-secret>
 ALLOWED_ORIGINS=https://app.yourdomain.com
 TRUSTED_HOSTS=api.yourdomain.com

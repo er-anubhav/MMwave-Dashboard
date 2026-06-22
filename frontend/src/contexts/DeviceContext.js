@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/api';
 import { useAuth } from './AuthContext';
 
 const DeviceContext = createContext(null);
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
-const API = `${BACKEND_URL}/api`;
 
 export const DeviceProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -42,7 +39,7 @@ export const DeviceProvider = ({ children }) => {
   const loadDevices = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/devices`);
+      const response = await api.get(`/devices`);
       
       // Backend returns array directly or wrapped in devices property
       const devicesList = Array.isArray(response.data) ? response.data : response.data.devices || [];
@@ -59,9 +56,9 @@ export const DeviceProvider = ({ children }) => {
     }
   };
 
-  const linkDevice = async (deviceId, name, deviceType = 'mmwave_switch') => {
+  const linkDevice = async (deviceId, name, deviceType = 'LYFSense_switch') => {
     try {
-      const response = await axios.post(`${API}/devices/link`, {
+      const response = await api.post(`/devices/link`, {
         device_id: deviceId,
         name: name,
         device_type: deviceType
@@ -93,7 +90,7 @@ export const DeviceProvider = ({ children }) => {
 
   const unlinkDevice = async (deviceId) => {
     try {
-      await axios.delete(`${API}/devices/${deviceId}/unlink`);
+      await api.delete(`/devices/${deviceId}/unlink`);
       
       // If we unlinked the selected device, clear selection
       if (selectedDevice?.device_id === deviceId) {
@@ -121,7 +118,7 @@ export const DeviceProvider = ({ children }) => {
 
   const updateDevice = async (deviceId, name) => {
     try {
-      await axios.patch(`${API}/devices/${deviceId}`, { name });
+      await api.patch(`/devices/${deviceId}`, { name });
       await loadDevices();
       return { success: true };
     } catch (error) {

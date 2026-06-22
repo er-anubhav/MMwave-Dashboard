@@ -1,7 +1,7 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
-import DashboardNavbar from "../components/DashboardNavbar";
 import StatCard from "../components/ui/StatCard";
 import RelayControl from "../components/RelayControl";
 import { Card, CardContent } from "../components/ui/card";
@@ -24,20 +24,26 @@ const pageTransition = {
 };
 
 export default function Dashboard() {
+  const { setHeaderProps } = useOutletContext();
  const navigate = useNavigate();
  const { selectedDevice, devices = [] } = useDevice();
  const { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, handleModeChange, handleRelayToggle, handleRelayModeChange } = useDeviceData(selectedDevice);
 
+
+  useEffect(() => {
+    setHeaderProps({
+      title: "Overview",
+      mode,
+      onModeChange: handleModeChange,
+      isConnected,
+      lastUpdated
+    });
+  }, [mode, handleModeChange, isConnected, lastUpdated, setHeaderProps]);
+
  if (devices.length === 0) {
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar 
- mode={mode} 
- onModeChange={handleModeChange}
- isConnected={false}
- lastUpdated={null}
- title="Overview"
- />
+ 
  <main className="py-8">
  <Card className="rounded-xl border border-gray-100 shadow-sm">
  <CardContent className="flex flex-col items-center justify-center py-12">
@@ -60,13 +66,7 @@ export default function Dashboard() {
  if (!selectedDevice) {
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar 
- mode={mode} 
- onModeChange={handleModeChange}
- isConnected={false}
- lastUpdated={null}
- title="Overview"
- />
+ 
  <main className="py-8">
  <Card className="rounded-xl border border-gray-100 shadow-sm">
  <CardContent className="flex flex-col items-center justify-center py-12">
@@ -84,13 +84,7 @@ export default function Dashboard() {
 
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- <DashboardNavbar 
- mode={mode} 
- onModeChange={handleModeChange}
- isConnected={isConnected}
- lastUpdated={lastUpdated}
- title="Overview"
- />
+ 
  
  <main className="">
  {/* Simplified Status Cards for Overview */}
@@ -98,21 +92,21 @@ export default function Dashboard() {
  <StatCard
  title="Presence"
  value={sensorData?.presence ? "Detected" : "None"}
- icon={<User className="w-6 h-6 text-indigo-600" />}
+ icon={<User className="w-6 h-6 text-emerald-600" />}
  footerLabel={sensorData?.presence ? (sensorData?.activity ? `Activity score: ${sensorData.activity}` : "Person in room") : "No movement"}
  footerValue={sensorData?.presence ? "Active" : "Clear"}
  footerColor={sensorData?.presence ? "text-emerald-600" : "text-gray-500"}
- iconBg="bg-indigo-50"
+ iconBg="bg-emerald-50"
  isActive={sensorData?.presence}
  />
  <StatCard
  title="Radar Mode"
  value={mode === "sleep" ? "Sleep Mode" : "Fall Mode"}
- icon={<Settings2 className="w-6 h-6 text-blue-600" />}
+ icon={<Settings2 className="w-6 h-6 text-emerald-600" />}
  footerLabel={`Relay is ${relayState ? "ON" : "OFF"}`}
  footerValue={relayMode === "auto" ? "AUTO" : mode.toUpperCase()}
- footerColor="text-blue-600"
- iconBg="bg-blue-50"
+ footerColor="text-emerald-600"
+ iconBg="bg-emerald-50"
  isActive={relayState || relayMode === "auto"}
  />
  <StatCard
@@ -142,10 +136,10 @@ export default function Dashboard() {
  <RelayControl relayState={relayState} relayMode={relayMode} onToggle={handleRelayToggle} onModeChange={handleRelayModeChange} />
  </div>
  <div className="col-span-1 lg:col-span-2 grid gap-2 grid-cols-1 md:grid-cols-2">
- <Card className="rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-200 group" onClick={() => navigate("/health")}>
- <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 group-hover:bg-emerald-50/30 transition-colors">
- <h3 className=" text-gray-900 text-sm">Vitals Preview</h3>
- <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Click to expand</span>
+ <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card" onClick={() => navigate("/health")}>
+ <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
+ <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Vitals Preview</h3>
+ <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
  </div>
  <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
  <VitalsChart 
@@ -155,11 +149,11 @@ export default function Dashboard() {
  </div>
  </Card>
  
- <Card className="rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group" onClick={() => navigate("/security")}>
- <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 group-hover:bg-indigo-50/30 transition-colors">
- <h3 className=" text-gray-900 text-sm">Activity Preview</h3>
- <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Click to expand</span>
- </div>
+ <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card" onClick={() => navigate("/security")}>
+  <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
+  <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Activity Preview</h3>
+  <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
+  </div>
  <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
  <ActivityChart 
  currentActivity={sensorData?.activity} 

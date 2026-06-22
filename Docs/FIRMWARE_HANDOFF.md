@@ -1,6 +1,6 @@
 # Firmware Integration Handoff
 
-This document is the firmware-facing contract for integrating an ESP32 mmWave device with this backend.
+This document is the firmware-facing contract for integrating an ESP32 LYFSense device with this backend.
 
 ## 1) Start Backend Correctly
 
@@ -30,15 +30,12 @@ http://localhost:8000
 ## 3) Required Device Flow
 
 1. Device is linked to a user account first in dashboard UI.
-2. Device stores the returned API key.
-3. Device sends telemetry to `POST /api/data` every ~2 seconds with `X-Device-Key: <api_key>`.
-4. Device polls command endpoint `GET /api/command?device_id=<id>` every ~1 second with `X-Device-Key: <api_key>`.
+2. Device sends telemetry to `POST /api/data` every ~2 seconds.
+3. Device polls command endpoint `GET /api/command?device_id=<id>` every ~1 second.
 
 ## 4) Device Telemetry Endpoint
 
 ### POST `/api/data`
-
-Required header:
 
 ```text
 X-Device-Key: <api_key>
@@ -102,8 +99,6 @@ Device health fields are optional, but sending them improves the dashboard diagn
 
 ### GET `/api/command?device_id=<device-id>`
 
-Required header:
-
 ```text
 X-Device-Key: <api_key>
 ```
@@ -132,8 +127,6 @@ X-Device-Key: <api_key>
 ## 7) Error Handling Expectations
 
 - `404` from `POST /api/data` or `GET /api/command`: device ID not linked.
-- `401` from `POST /api/data` or `GET /api/command`: missing `X-Device-Key`.
-- `403` from `POST /api/data` or `GET /api/command`: invalid device key.
 - `500`: transient backend issue, retry with exponential backoff.
 - Network timeout: retry with jitter.
 
@@ -157,9 +150,8 @@ Expected output includes:
 - `[OK] Health`
 - `[OK] Login`
 - `[OK] Devices`
-- `[OK] Device data rejects missing key`
-- `[OK] Device data with key`
-- `[OK] Device command with key`
+- `[OK] Device data`
+- `[OK] Device command`
 - `[OK] Device health`
 - `[OK] Notifications providers`
 - `[OK] Automations`
@@ -168,5 +160,5 @@ Expected output includes:
 ## 9) Environment Notes
 
 - Backend auth uses JWT for dashboard users.
-- Device endpoints authenticate with `device_id` plus `X-Device-Key`.
+- Device endpoints identify with `device_id`.
 - For production, backend env vars are defined in `backend/.env.example`.

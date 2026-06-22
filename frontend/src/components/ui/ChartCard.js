@@ -1,11 +1,11 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 
-export default function ChartCard({ title, subtitle, footerText, chartBg = "bg-slate-50", children }) {
+export default function ChartCard({ title, subtitle, footerText, chartBg = "bg-slate-50 dark:bg-background", children }) {
  return (
- <div className="flex flex-col bg-white shadow-sm border border-gray-200 rounded-2xl h-full overflow-hidden transition-all duration-300 hover:shadow-md">
+ <div className="flex flex-col bg-white dark:bg-background shadow-sm border border-gray-200 dark:border-border rounded-2xl h-full overflow-hidden transition-all duration-300 hover:shadow-md">
  <div className="p-6 pb-2">
- <h6 className="text-base text-black capitalize">
+ <h6 className="text-base text-black dark:text-primary capitalize">
  {title}
  </h6>
  <p className="text-sm text-gray-400 mt-1 mb-4">

@@ -1,8 +1,8 @@
-# mmWave Smart Switch Firmware Documentation
+# LYFSense Smart Switch Firmware Documentation
 
 ## 1. System Overview
 
-The device is a smart wall switch with integrated **mmWave radar
+The device is a smart wall switch with integrated **LYFSense radar
 sensing** built on the **ESP32 platform**.
 
 The system performs:
@@ -15,7 +15,7 @@ The system performs:
 -   Mobile provisioning via Bluetooth
 -   Fallback provisioning via SoftAP
 
-The radar used is the **DFRobot C1001 mmWave radar module**, which
+The radar used is the **DFRobot C1001 LYFSense radar module**, which
 internally processes raw radar signals and provides high-level human
 activity data.
 
@@ -26,7 +26,7 @@ activity data.
   Component                 Function
   ------------------------- ----------------------------------
   ESP32                     Main controller
-  C1001 mmWave Radar        Presence, fall, sleep monitoring
+  C1001 LYFSense Radar        Presence, fall, sleep monitoring
   Relay                     Controls appliance (light/fan)
   Capacitive Touch Button   Manual control & provisioning
   WiFi                      Cloud connectivity
@@ -177,7 +177,7 @@ SoftAP is used as a fallback provisioning method.
 
 ### Access Point
 
-    SSID: mmwave_setup
+    SSID: LYFSense_setup
     IP: 192.168.4.1
 
 ### Web Interface
@@ -197,7 +197,7 @@ Credentials are saved to NVS and the device restarts.
 
 # 8. Radar Operation
 
-The device uses the **C1001 mmWave radar module**.
+The device uses the **C1001 LYFSense radar module**.
 
 The radar internally performs signal processing and exposes **high-level
 data**.
@@ -356,9 +356,6 @@ Example command:
 
     POST /api/data
 
-Required header:
-
-    X-Device-Key: <api_key>
 
 Recommended payload (canonical nested format):
 
@@ -390,9 +387,6 @@ Compatibility note: Backend also accepts flat payload fields for legacy firmware
 
         GET /api/command?device_id=<device-id>
 
-Required header:
-
-        X-Device-Key: <api_key>
 
 Example response:
 

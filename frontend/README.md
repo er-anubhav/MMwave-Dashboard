@@ -29,7 +29,7 @@ A modern React-based dashboard for real-time monitoring of MM Wave sensor data, 
 The MM Wave Dashboard is a comprehensive monitoring interface for:
 
 - **Multi-User Authentication**: Secure JWT-based user registration and login
-- **Multi-Device Management**: Link and manage multiple mmWave sensors per user
+- **Multi-Device Management**: Link and manage multiple LYFSense sensors per user
 - **Device Selection**: Switch between devices with dropdown selector
 - **Fall Detection Mode**: Real-time monitoring of fall events with activity charts
 - **Sleep Mode**: Sleep pattern tracking with respiration monitoring

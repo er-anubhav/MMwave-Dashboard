@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
-const API_URL = `${BACKEND_URL}/api`;
+let BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
+
+// On HTTPS, never use an HTTP backend URL directly — use relative paths and let Vercel proxy
+if (BACKEND_URL.startsWith("http://") && window.location.protocol === "https:") {
+    BACKEND_URL = "";
+}
+
+const API_URL = BACKEND_URL ? `${BACKEND_URL}/api` : "/api";
 
 const api = axios.create({
     baseURL: API_URL,

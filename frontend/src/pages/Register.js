@@ -115,7 +115,7 @@ export default function Register() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-gray-400 text-base"
           >
-            Join now to deploy, provision, and monitor your smart mmWave devices. Fully secure, compliant, and responsive.
+            Join now to deploy, provision, and monitor your smart devices. Fully secure, compliant, and responsive.
           </motion.p>
 
           <motion.div 

@@ -11,8 +11,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "app_env": "development",
     "security": {
         "jwt_secret_key": "",
-        "allowed_origins": ["http://localhost:3000"],
-        "trusted_hosts": ["localhost", "127.0.0.1", "::1"],
+        "allowed_origins": ["http://localhost:3000","http://3.95.125.222:8000"],
+        "trusted_hosts": ["localhost", "127.0.0.1", "::1", "3.95.125.222"],
     },
     "server": {
         "host": "0.0.0.0",

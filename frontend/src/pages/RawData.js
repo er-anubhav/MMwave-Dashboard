@@ -200,7 +200,9 @@ export default function RawData() {
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Status</th>
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Mode</th>
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Activity</th>
-                    <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Vitals</th>
+                    {!(selectedDevice?.name?.toUpperCase().includes("STD")) && (
+                      <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Vitals</th>
+                    )}
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -235,22 +237,24 @@ export default function RawData() {
                               <span>{sensor.activity ?? "0"}</span>
                             </div>
                           </td>
-                          <td className="py-3.5 px-6 text-sm">
-                            {sensor.sleep ? (
-                              <div className="flex items-center gap-3 text-xs ">
-                                <span className="flex items-center gap-1 text-rose-500">
-                                  <Heart className="w-3.5 h-3.5" />
-                                  {sensor.sleep.heart_rate ?? "N/A"}
-                                </span>
-                                <span className="flex items-center gap-1 text-emerald-500">
-                                  <Wind className="w-3.5 h-3.5" />
-                                  {sensor.sleep.respiration ?? "N/A"}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-gray-400">N/A</span>
-                            )}
-                          </td>
+                          {!(selectedDevice?.name?.toUpperCase().includes("STD")) && (
+                            <td className="py-3.5 px-6 text-sm">
+                              {sensor.sleep ? (
+                                <div className="flex items-center gap-3 text-xs ">
+                                  <span className="flex items-center gap-1 text-rose-500">
+                                    <Heart className="w-3.5 h-3.5" />
+                                    {sensor.sleep.heart_rate ?? "N/A"}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-emerald-500">
+                                    <Wind className="w-3.5 h-3.5" />
+                                    {sensor.sleep.respiration ?? "N/A"}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">N/A</span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-3.5 px-6 text-right">
                             <Button
                               variant="ghost"

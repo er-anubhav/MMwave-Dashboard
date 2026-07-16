@@ -281,6 +281,9 @@ export default function DeviceManagement() {
                         onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
                         required
                       />
+                      <p className="text-[11px] text-gray-500 mt-1 dark:text-zinc-400">
+                        * Include <strong>"STD"</strong> in the name for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -444,7 +447,13 @@ export default function DeviceManagement() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-zinc-400">Device Type:</span>
-                      <span className="text-gray-900 dark:text-primary">{device.device_type}</span>
+                      <span className="text-gray-900 dark:text-primary">
+                        {device.name?.toUpperCase().includes("STD")
+                          ? "Standard (STD)"
+                          : device.name?.toUpperCase().includes("PRO")
+                          ? "Pro (PRO)"
+                          : device.device_type}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-zinc-400">Linked:</span>
@@ -489,6 +498,9 @@ export default function DeviceManagement() {
                               onChange={(e) => setEditingDevice({ ...editingDevice, name: e.target.value })}
                               required
                             />
+                            <p className="text-[11px] text-gray-500 mt-1 dark:text-zinc-400">
+                              * Include <strong>"STD"</strong> in the name for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
+                            </p>
                           </div>
 
                           <DialogFooter>

@@ -138,6 +138,10 @@ REACT_APP_BACKEND_URL=https://api.yourdomain.com
 DISABLE_ESLINT_PLUGIN=true
 ```
 
+> **Warning:** Ensure `REACT_APP_BACKEND_URL` uses `https://` (not `http://`). Browsers block mixed active content when the frontend is served over HTTPS.
+
+> **Note:** The `vercel.json` rewrite destination must be updated to match the actual HTTPS API domain before deploying.
+
 Attach your custom domain:
 
 ```text

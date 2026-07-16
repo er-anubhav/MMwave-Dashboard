@@ -50,7 +50,7 @@ export default function Dashboard() {
  <LinkIcon className="h-16 w-16 text-gray-300 mb-4" />
  <h3 className="text-base text-gray-900 mb-2">No devices linked</h3>
  <p className="text-gray-600 text-center mb-6">
- Link your first MMWave device to start monitoring
+ Link your first device to start monitoring
  </p>
  <Button onClick={() => navigate("/devices")} className="bg-[#1C1917] hover:bg-[#292524]">
  <Plus className="h-4 w-4 mr-2" />
@@ -82,6 +82,8 @@ export default function Dashboard() {
  );
  }
 
+  const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
  
@@ -109,60 +111,66 @@ export default function Dashboard() {
  iconBg="bg-emerald-50"
  isActive={relayState || relayMode === "auto"}
  />
- <StatCard
- title="Heart Rate"
- value={sensorData?.sleep?.heart_rate ? `${sensorData.sleep.heart_rate} bpm` : "N/A"}
- icon={<Heart className="w-6 h-6 text-rose-600" />}
- footerLabel={sensorData?.sleep?.heart_rate ? "Current rate" : "Requires Sleep Mode"}
- footerValue={sensorData?.sleep?.heart_rate ? "Live" : "Waiting"}
- footerColor={sensorData?.sleep?.heart_rate ? "text-rose-600" : "text-gray-500"}
- iconBg="bg-rose-50"
- isActive={!!sensorData?.sleep?.heart_rate}
- />
- <StatCard
- title="Respiration"
- value={sensorData?.sleep?.respiration ? `${sensorData.sleep.respiration} bpm` : "N/A"}
- icon={<Wind className="w-6 h-6 text-emerald-600" />}
- footerLabel={sensorData?.sleep?.respiration ? "Current rate" : "Requires Sleep Mode"}
- footerValue={sensorData?.sleep?.respiration ? "Live" : "Waiting"}
- footerColor={sensorData?.sleep?.respiration ? "text-emerald-600" : "text-gray-500"}
- iconBg="bg-emerald-50"
- isActive={!!sensorData?.sleep?.respiration}
- />
+ {!isStd && (
+    <>
+      <StatCard
+      title="Heart Rate"
+      value={sensorData?.sleep?.heart_rate ? `${sensorData.sleep.heart_rate} bpm` : "N/A"}
+      icon={<Heart className="w-6 h-6 text-rose-600" />}
+      footerLabel={sensorData?.sleep?.heart_rate ? "Current rate" : "Requires Sleep Mode"}
+      footerValue={sensorData?.sleep?.heart_rate ? "Live" : "Waiting"}
+      footerColor={sensorData?.sleep?.heart_rate ? "text-rose-600" : "text-gray-500"}
+      iconBg="bg-rose-50"
+      isActive={!!sensorData?.sleep?.heart_rate}
+      />
+      <StatCard
+      title="Respiration"
+      value={sensorData?.sleep?.respiration ? `${sensorData.sleep.respiration} bpm` : "N/A"}
+      icon={<Wind className="w-6 h-6 text-emerald-600" />}
+      footerLabel={sensorData?.sleep?.respiration ? "Current rate" : "Requires Sleep Mode"}
+      footerValue={sensorData?.sleep?.respiration ? "Live" : "Waiting"}
+      footerColor={sensorData?.sleep?.respiration ? "text-emerald-600" : "text-gray-500"}
+      iconBg="bg-emerald-50"
+      isActive={!!sensorData?.sleep?.respiration}
+      />
+    </>
+  )}
  </div>
 
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
- <div className="col-span-1 self-start">
- <RelayControl relayState={relayState} relayMode={relayMode} onToggle={handleRelayToggle} onModeChange={handleRelayModeChange} />
- </div>
- <div className="col-span-1 lg:col-span-2 grid gap-2 grid-cols-1 md:grid-cols-2">
- <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card" onClick={() => navigate("/health")}>
- <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
- <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Vitals Preview</h3>
- <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
- </div>
- <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
- <VitalsChart 
- currentHeartRate={sensorData?.sleep?.heart_rate} 
- currentRespiration={sensorData?.sleep?.respiration} 
- />
- </div>
- </Card>
- 
- <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card" onClick={() => navigate("/security")}>
-  <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
-  <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Activity Preview</h3>
-  <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+  <div className="col-span-1 self-start">
+  <RelayControl relayState={relayState} relayMode={relayMode} onToggle={handleRelayToggle} onModeChange={handleRelayModeChange} />
   </div>
- <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
- <ActivityChart 
- currentActivity={sensorData?.activity} 
- currentPresence={sensorData?.presence} 
- />
- </div>
- </Card>
- </div>
- </div>
+  <div className="col-span-1 lg:col-span-2 grid gap-2 grid-cols-1 md:grid-cols-2">
+  {!isStd && (
+    <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card" onClick={() => navigate("/health")}>
+    <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
+    <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Vitals Preview</h3>
+    <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
+    </div>
+    <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
+    <VitalsChart 
+    currentHeartRate={sensorData?.sleep?.heart_rate} 
+    currentRespiration={sensorData?.sleep?.respiration} 
+    />
+    </div>
+    </Card>
+  )}
+  
+  <Card className={`rounded-xl border border-gray-200 dark:border-border shadow-sm overflow-hidden h-full flex flex-col cursor-pointer transition-all hover:shadow-md hover:border-emerald-500/30 group glass-card ${isStd ? "md:col-span-2" : ""}`} onClick={() => navigate("/security")}>
+   <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 dark:bg-background/20 group-hover:bg-emerald-500/5 transition-colors">
+   <h3 className="text-gray-900 dark:text-zinc-200 text-sm">Activity Preview</h3>
+   <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/10">Click to expand</span>
+   </div>
+  <div className="flex-1 p-4 relative h-[250px] pointer-events-none">
+  <ActivityChart 
+  currentActivity={sensorData?.activity} 
+  currentPresence={sensorData?.presence} 
+  />
+  </div>
+  </Card>
+  </div>
+  </div>
  </main>
  </motion.div>
  );

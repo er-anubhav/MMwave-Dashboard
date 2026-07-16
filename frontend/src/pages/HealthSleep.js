@@ -78,6 +78,28 @@ export default function HealthSleep() {
  );
  }
 
+ const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+ if (isStd) {
+   return (
+     <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
+       <main className="py-8">
+         <Card className="rounded-xl border border-gray-200 dark:border-border shadow-sm">
+           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+             <Heart className="h-16 w-16 text-rose-500 mb-4 animate-pulse" />
+             <h3 className="text-lg font-medium text-gray-900 dark:text-primary mb-2">Vitals & Sleep Tracking Disabled</h3>
+             <p className="text-gray-650 dark:text-gray-400 max-w-md">
+               This device is registered as a Standard (STD) device. Vitals, heartbeat, and sleep tracking are only available on Pro (PRO) devices.
+             </p>
+             <Button onClick={() => navigate("/")} className="bg-[#1C1917] dark:bg-primary dark:text-black hover:bg-black/90 mt-6">
+               Go to Dashboard
+             </Button>
+           </CardContent>
+         </Card>
+       </main>
+     </motion.div>
+   );
+ }
+
  return (
  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
  

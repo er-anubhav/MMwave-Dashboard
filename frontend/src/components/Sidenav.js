@@ -3,20 +3,25 @@ import { Home, Heart, Shield, Bell, Terminal, Settings, LogOut } from "lucide-re
 import { motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 
+import { useDevice } from "../contexts/DeviceContext";
+
 export default function Sidenav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { selectedDevice } = useDevice();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+
   const mainLinks = [
     { name: "Overview", path: "/", icon: Home },
     { name: "Alerts", path: "/notifications", icon: Bell },
-    { name: "Health & Sleep", path: "/health", icon: Heart },
+    ...(!isStd ? [{ name: "Health & Sleep", path: "/health", icon: Heart }] : []),
     { name: "Security & Activity", path: "/security", icon: Shield },
   ];
 

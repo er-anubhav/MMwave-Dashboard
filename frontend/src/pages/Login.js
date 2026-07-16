@@ -74,7 +74,7 @@ export default function Login() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-4xl  leading-tight tracking-tight text-white"
           >
-            Smart Presence & Vital Insights, Powered by mmWave.
+            Smart Presence & Vital Insights.
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0 }}

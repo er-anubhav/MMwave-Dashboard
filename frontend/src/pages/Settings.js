@@ -109,6 +109,22 @@ export default function Settings() {
 
   const { selectedDevice } = useDevice();
   const { mode, handleModeChange, isConnected, lastUpdated } = useDeviceData(selectedDevice);
+  const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+
+  useEffect(() => {
+    if (isStd) {
+      setCreateForm((prev) => {
+        let updated = { ...prev };
+        if (prev.trigger === "Sleep state is Deep Sleep") {
+          updated.trigger = "Presence detected";
+        }
+        if (prev.action === "Set mode to Sleep") {
+          updated.action = "Set mode to Fall Detection";
+        }
+        return updated;
+      });
+    }
+  }, [selectedDevice, isStd]);
 
   // System & Diagnostics states
   const [diagnostics, setDiagnostics] = useState(null);
@@ -751,7 +767,7 @@ export default function Settings() {
                   <option value="Specific Time">Specific Time</option>
                   <option>Presence detected</option>
                   <option>Fall detected</option>
-                  <option>Sleep state is Deep Sleep</option>
+                  {!isStd && <option>Sleep state is Deep Sleep</option>}
                 </select>
               </div>
               {createForm.trigger === "Specific Time" && (
@@ -772,7 +788,7 @@ export default function Settings() {
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, action: e.target.value }))}
                   className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                 >
-                  <option>Set mode to Sleep</option>
+                  {!isStd && <option>Set mode to Sleep</option>}
                   <option>Set mode to Fall Detection</option>
                   <option>Turn Relay ON</option>
                   <option>Turn Relay OFF</option>

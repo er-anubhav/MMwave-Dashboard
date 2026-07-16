@@ -96,7 +96,7 @@ export default function DashboardNavbar({ mode, onModeChange, isConnected, lastU
   )}
 
  {/* Mode Toggle */}
- {selectedDevice && (
+ {selectedDevice && !(selectedDevice?.name?.toUpperCase().includes("STD")) && (
  <div className="flex items-center bg-gray-50/50 dark:bg-background/50 border border-gray-200 dark:border-border rounded-xl p-1">
  <button
  onClick={() => handleModeChangeClick("fall")}

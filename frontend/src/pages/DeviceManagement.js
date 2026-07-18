@@ -281,22 +281,6 @@ export default function DeviceManagement() {
                         onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
                         required
                       />
-                      <p className="text-[11px] text-gray-500 mt-1 dark:text-zinc-400">
-                        * Start the Device ID with <strong>"STD"</strong> for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="deviceType">Device Type</Label>
-                      <select
-                        id="deviceType"
-                        className="w-full px-3 py-2 border border-gray-200 dark:border-border rounded-md bg-white dark:bg-background text-gray-900 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                        value={linkForm.deviceType}
-                        onChange={(e) => setLinkForm({ ...linkForm, deviceType: e.target.value })}
-                      >
-                        <option value="LYFSense_switch">LYFSense Switch</option>
-                        <option value="LYFSense_sensor">LYFSense Sensor</option>
-                      </select>
                     </div>
                   </div>
 

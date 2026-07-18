@@ -50,8 +50,6 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         labelText: 'Device ID',
-                        helperText: '* Start ID with "STD" for Standard or "PRO" for Pro.',
-                        helperStyle: TextStyle(color: Color(0xFF9CAAA2), fontSize: 10),
                         labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFA7DEC5))),
@@ -63,35 +61,10 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         labelText: 'Device Name (Optional)',
-                        helperText: '* Tier is determined by the prefix of the Device ID.',
-                        helperStyle: TextStyle(color: Color(0xFF9CAAA2), fontSize: 10),
                         labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFA7DEC5))),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedDeviceType,
-                      dropdownColor: const Color(0xFF13261C),
-                      decoration: const InputDecoration(
-                        labelText: 'Device Type',
-                        labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFA7DEC5))),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      items: const [
-                        DropdownMenuItem(value: 'LYFSense_switch', child: Text('MMWave Smart Switch')),
-                        DropdownMenuItem(value: 'LYFSense_vitals', child: Text('MMWave Vitals Tracker')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setDialogState(() {
-                            _selectedDeviceType = val;
-                          });
-                        }
-                      },
                     ),
                   ],
                 ),

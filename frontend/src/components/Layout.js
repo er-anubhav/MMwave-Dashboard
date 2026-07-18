@@ -52,7 +52,7 @@ export default function Layout() {
       <Sidenav />
       
       {/* Persistent Static Header */}
-      <div className="xl:ml-[266px] p-4 px-4 md:px-8 pb-0 sticky top-0 z-30 bg-transparent">
+      <div className="lg:ml-[266px] p-4 px-4 md:px-8 pb-0 sticky top-0 z-30 bg-transparent">
         <DashboardNavbar {...headerProps} />
       </div>
 
@@ -60,7 +60,7 @@ export default function Layout() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="p-4 px-4 md:px-8 pt-2 xl:ml-[266px] relative z-10 text-gray-900 dark:text-primary"
+        className="p-4 px-4 md:px-8 pt-2 lg:ml-[266px] relative z-10 text-gray-900 dark:text-primary"
       >
         <Outlet context={contextValue} />
       </motion.div>

@@ -31,7 +31,7 @@ export default function Sidenav() {
   ];
 
   return (
-    <aside className="fixed inset-y-0 rounded-none left-0 z-40 w-64 my-4 ml-4 overflow-y-auto transition-transform glass-card xl:translate-x-0 hidden xl:flex flex-col shadow-lg">
+    <aside className="fixed inset-y-0 rounded-none left-0 z-40 w-64 my-4 ml-4 overflow-y-auto transition-transform glass-card lg:translate-x-0 hidden lg:flex flex-col shadow-lg">
       <div className="relative border-b border-gray-200/50 dark:border-border mb-2">
         <div className="flex items-center gap-3 py-6 px-8">
           <span className="text-xl text-black dark:text-primary tracking-wider">

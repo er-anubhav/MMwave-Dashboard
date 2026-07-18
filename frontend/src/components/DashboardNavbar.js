@@ -1,7 +1,9 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Activity, Moon, ChevronDown, Link as LinkIcon, Plus } from "lucide-react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { Activity, Moon, ChevronDown, Link as LinkIcon, Plus, Menu, Home, Heart, Shield, Bell, Terminal, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { useDevice } from "../contexts/DeviceContext";
+import { useAuth } from "../contexts/AuthContext";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import {
  DropdownMenu,
  DropdownMenuContent,
@@ -14,11 +16,32 @@ import {
 export default function DashboardNavbar({ mode, onModeChange, isConnected, lastUpdated, title = "Overview" }) {
  const { devices, selectedDevice, selectDevice } = useDevice();
  const navigate = useNavigate();
+ const location = useLocation();
+ const { logout } = useAuth();
 
  const handleModeChangeClick = (newMode) => {
- if (typeof onModeChange === 'function') {
- onModeChange(newMode);
- }
+  if (typeof onModeChange === 'function') {
+  onModeChange(newMode);
+  }
+ };
+
+ const isStd = selectedDevice?.device_id?.toUpperCase().startsWith("STD");
+
+ const mainLinks = [
+   { name: "Overview", path: "/", icon: Home },
+   { name: "Alerts", path: "/notifications", icon: Bell },
+   ...(!isStd ? [{ name: "Health & Sleep", path: "/health", icon: Heart }] : []),
+   { name: "Security & Activity", path: "/security", icon: Shield },
+ ];
+
+ const bottomLinks = [
+   { name: "Settings", path: "/settings", icon: SettingsIcon },
+   { name: "Raw Data", path: "/raw-data", icon: Terminal },
+ ];
+
+ const handleLogout = () => {
+   logout();
+   navigate("/login");
  };
 
  return (
@@ -37,7 +60,83 @@ export default function DashboardNavbar({ mode, onModeChange, isConnected, lastU
  </ol>
  </nav>
  <div className="flex items-center gap-3">
- <h6 className="text-base text-black dark:text-primary">
+  {/* Hamburger Menu (visible only on mobile/tablet screens < lg) */}
+  <div className="lg:hidden">
+    <Sheet>
+      <SheetTrigger asChild>
+        <button className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 dark:border-border bg-white/50 dark:bg-background/50 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-primary transition-colors">
+          <Menu size={20} />
+        </button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0 bg-white dark:bg-background border-r border-gray-200 dark:border-border flex flex-col h-full z-[150]">
+        <div className="relative border-b border-gray-200/50 dark:border-border mb-2">
+          <div className="flex items-center gap-3 py-6 px-8">
+            <span className="text-xl text-black dark:text-primary tracking-wider font-semibold">
+              LYFSense
+            </span>
+          </div>
+        </div>
+        <div className="m-4 flex-1 flex flex-col justify-between">
+          <ul className="flex flex-col gap-1.5">
+            {mainLinks.map(({ name, path, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <li key={name} className="relative">
+                  <Link to={path}>
+                    <button
+                      className={`relative select-none text-left transition-colors text-sm py-3 rounded-xl w-full flex items-center gap-4 px-4 capitalize z-10 ${
+                        isActive
+                          ? "text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/20 border-l-[3px] border-emerald-500"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-primary"
+                      }`}
+                      type="button"
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                      <span>{name}</span>
+                    </button>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <ul className="mb-4 flex flex-col gap-1.5">
+            {bottomLinks.map(({ name, path, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <li key={name} className="relative">
+                  <Link to={path}>
+                    <button
+                      className={`relative select-none text-left transition-colors text-sm py-3 rounded-xl w-full flex items-center gap-4 px-4 capitalize z-10 ${
+                        isActive
+                          ? "text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/20 border-l-[3px] border-emerald-500"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-primary"
+                      }`}
+                      type="button"
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
+                      <span>{name}</span>
+                    </button>
+                  </Link>
+                </li>
+              );
+            })}
+            <li className="relative">
+              <button
+                onClick={handleLogout}
+                className="relative select-none text-left transition-colors text-sm py-3 rounded-xl w-full flex items-center gap-4 px-4 capitalize z-10 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/10"
+                type="button"
+              >
+                <LogOut className="w-5 h-5 text-red-500" />
+                <span>Logout</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </SheetContent>
+    </Sheet>
+  </div>
+ <h6 className="text-base text-black dark:text-primary font-semibold">
   {title}
   </h6>
   <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${isConnected ? 'bg-emerald-500/10' : 'bg-gray-100 dark:bg-background'} border ${isConnected ? 'border-emerald-500/20' : 'border-gray-200 dark:border-border'}`}>

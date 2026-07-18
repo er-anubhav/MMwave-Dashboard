@@ -904,6 +904,9 @@ async def receive_sensor_data(data: SensorDataUpdate):
     return {"status": "success", "message": "Data received"}
 
 
+CALIBRATION_REQUESTS = set()
+
+
 @app.get("/api/command")
 async def get_device_command(device_id: str):
     """Firmware device polling endpoint to get current mode and relay state"""
@@ -912,9 +915,21 @@ async def get_device_command(device_id: str):
         raise HTTPException(status_code=404, detail="Device not found")
         
     command = database.get_device_command(device_id)
+    
+    # Check if calibration is requested for this device
+    calibrate = False
+    if device_id in CALIBRATION_REQUESTS:
+        calibrate = True
+        CALIBRATION_REQUESTS.remove(device_id)
+        
     if command:
-        return command
-    return {"mode": "fall", "relay": False, "relay_mode": "manual"}
+        return {
+            "mode": command["mode"],
+            "relay": command["relay"],
+            "relay_mode": command["relay_mode"],
+            "calibrate": calibrate
+        }
+    return {"mode": "fall", "relay": False, "relay_mode": "manual", "calibrate": calibrate}
 
 
 # ==================== RELAY & MODE ROUTES ====================
@@ -1309,3 +1324,14 @@ async def rotate_device_key(device_id: str, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=500, detail="Failed to rotate key")
         
     return {"message": "Key rotated successfully", "api_key": new_key}
+
+
+@app.post("/api/devices/{device_id}/calibrate")
+async def trigger_device_calibration(device_id: str, current_user: dict = Depends(get_current_user)):
+    """Queue a transient calibration command for the device"""
+    # Verify ownership
+    if not database.verify_device_ownership(device_id, current_user["id"]):
+        raise HTTPException(status_code=403, detail="Device not found or access denied")
+    
+    CALIBRATION_REQUESTS.add(device_id)
+    return {"status": "success", "message": "Calibration command queued"}

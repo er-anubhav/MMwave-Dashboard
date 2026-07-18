@@ -299,6 +299,18 @@ class DeviceProvider extends ChangeNotifier {
     return null;
   }
 
+  Future<bool> calibrateDevice(String deviceId) async {
+    try {
+      final response = await _apiClient.post('/devices/$deviceId/calibrate');
+      if (response.statusCode == 200) {
+        return true;
+      }
+    } catch (e) {
+      print('Calibrate device error: $e');
+    }
+    return false;
+  }
+
   // --- Automations management ---
   Future<void> loadAutomations() async {
     if (_selectedDevice == null) return;

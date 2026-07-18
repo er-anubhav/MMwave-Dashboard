@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { Trash2, Plus, Edit2, Copy, CheckCircle2, AlertCircle, Link as LinkIcon, Bluetooth, Wifi, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Trash2, Plus, Edit2, Copy, CheckCircle2, AlertCircle, Link as LinkIcon, Bluetooth, Wifi, RotateCcw, ShieldCheck, Sliders } from 'lucide-react';
 import api from "../api/api";
 import { toast } from 'sonner';
 import { motion } from "framer-motion";
@@ -145,6 +145,19 @@ export default function DeviceManagement() {
       toast.success('Device API key rotated');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to rotate API key');
+    }
+  };
+
+  const handleCalibrateDevice = async (device) => {
+    if (!window.confirm(`Trigger calibration for ${device.name}? Make sure the room is empty and stand clear for 5 seconds.`)) {
+      return;
+    }
+
+    try {
+      await api.post(`/devices/${device.device_id}/calibrate`);
+      toast.success('Calibration command sent successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to trigger calibration');
     }
   };
 
@@ -496,6 +509,15 @@ export default function DeviceManagement() {
                         </form>
                       </DialogContent>
                     </Dialog>
+
+                    <Button
+                      variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10"
+                      size="sm"
+                      onClick={() => handleCalibrateDevice(device)}
+                    >
+                      <Sliders className="w-4 h-4 mr-2" />
+                      Calibrate
+                    </Button>
 
                     <Button
                       variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10"

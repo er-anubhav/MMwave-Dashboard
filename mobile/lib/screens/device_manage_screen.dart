@@ -290,6 +290,54 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
     }
   }
 
+  void _calibrateDevice(Device device) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF13261C),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+        ),
+        title: Text('Calibrate ${device.name}', style: const TextStyle(color: Colors.white)),
+        content: const Text(
+          'Make sure the room is empty and stand clear for 5 seconds. Continue?',
+          style: TextStyle(color: Color(0xFF9CAAA2)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF9CAAA2))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1F3B2D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+            ),
+            child: const Text('Calibrate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
+      final success = await deviceProvider.calibrateDevice(device.deviceId);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calibration command sent successfully')),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to trigger calibration'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _unlinkDevice(Device device) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -455,6 +503,13 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                 icon: const Icon(Icons.edit, size: 16),
                 label: const Text('Rename', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () => _calibrateDevice(device),
+                icon: const Icon(Icons.tune, size: 16),
+                label: const Text('Calibrate', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
               ),
               const SizedBox(width: 8),
               TextButton.icon(

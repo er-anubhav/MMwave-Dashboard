@@ -9,12 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { Trash2, Plus, Edit2, Copy, CheckCircle2, AlertCircle, Link as LinkIcon, Bluetooth, Wifi, RotateCcw, ShieldCheck, Sliders } from 'lucide-react';
+import { Trash2, Plus, Edit2, Copy, CheckCircle2, AlertCircle, Link as LinkIcon, RotateCcw, ShieldCheck, Sliders } from 'lucide-react';
 import api from "../api/api";
 import { toast } from 'sonner';
 import { motion } from "framer-motion";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -43,35 +41,9 @@ export default function DeviceManagement() {
   const [editingDevice, setEditingDevice] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [provisioning, setProvisioning] = useState(false);
-  const [provisionStatus, setProvisionStatus] = useState('');
-  const [provisionDevice, setProvisionDevice] = useState(null);
   const [rotatedKey, setRotatedKey] = useState('');
   const [rotatedDeviceId, setRotatedDeviceId] = useState('');
-  const [publicConfig, setPublicConfig] = useState({
-    ble_provisioning: {
-      service_uuid: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-      rx_characteristic_uuid: '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
-      device_name_prefixes: ['LYFSense', 'ESP32']
-    }
-  });
-  const [wifiForm, setWifiForm] = useState({ ssid: '', password: '' });
   const [linkForm, setLinkForm] = useState({ deviceId: '', name: '', deviceType: 'LYFSense_switch' });
-
-  useEffect(() => {
-    const loadPublicConfig = async () => {
-      try {
-        const response = await api.get(`/config/public`);
-        setPublicConfig((prev) => ({
-          ...prev,
-          ...(response.data || {})
-        }));
-      } catch {
-        // Keep local defaults when backend config is not reachable yet.
-      }
-    };
-    loadPublicConfig();
-  }, []);
 
   const handleLinkDevice = async (e) => {
     e.preventDefault();
@@ -85,12 +57,6 @@ export default function DeviceManagement() {
     if (result.success) {
       toast.success('Device linked successfully!');
       setApiKey(result.apiKey);
-      setProvisionDevice({
-        deviceId: linkForm.deviceId,
-        name: linkForm.name,
-        deviceType: linkForm.deviceType,
-        apiKey: result.apiKey
-      });
     } else {
       toast.error(result.error);
     }
@@ -170,78 +136,7 @@ export default function DeviceManagement() {
     setLinkDialogOpen(false);
     setApiKey('');
     setCopiedKey(false);
-    setProvisionDevice(null);
-    setProvisionStatus('');
-    setProvisioning(false);
-    setWifiForm({ ssid: '', password: '' });
     setLinkForm({ deviceId: '', name: '', deviceType: 'LYFSense_switch' });
-  };
-
-  const provisionWithBle = async () => {
-    if (!provisionDevice) {
-      toast.error('Link a device first');
-      return;
-    }
-    if (!wifiForm.ssid.trim()) {
-      toast.error('WiFi SSID is required');
-      return;
-    }
-    if (!navigator.bluetooth) {
-      toast.error('Web Bluetooth is not available in this browser');
-      return;
-    }
-
-    setProvisioning(true);
-    setProvisionStatus('Searching for nearby provisioning device...');
-
-    try {
-      const bleConfig = publicConfig.ble_provisioning;
-      const serviceUuid = bleConfig.service_uuid;
-      const rxCharacteristicUuid = bleConfig.rx_characteristic_uuid;
-      const namePrefixes = bleConfig.device_name_prefixes || [];
-      const bleDevice = await navigator.bluetooth.requestDevice({
-        filters: [
-          { services: [serviceUuid] },
-          ...namePrefixes.map((prefix) => ({ namePrefix: prefix }))
-        ],
-        optionalServices: [serviceUuid]
-      });
-
-      setProvisionStatus(`Connecting to ${bleDevice.name || 'device'}...`);
-      const server = await bleDevice.gatt.connect();
-      const service = await server.getPrimaryService(serviceUuid);
-      const characteristic = await service.getCharacteristic(rxCharacteristicUuid);
-
-      const payload = {
-        type: 'provision',
-        device_id: provisionDevice.deviceId,
-        api_key: provisionDevice.apiKey,
-        backend_url: BACKEND_URL,
-        wifi_ssid: wifiForm.ssid.trim(),
-        wifi_password: wifiForm.password
-      };
-      const encoded = new TextEncoder().encode(JSON.stringify(payload));
-
-      setProvisionStatus('Sending WiFi and credentials...');
-      for (let index = 0; index < encoded.length; index += 180) {
-        const chunk = encoded.slice(index, index + 180);
-        if (characteristic.writeValueWithoutResponse) {
-          await characteristic.writeValueWithoutResponse(chunk);
-        } else {
-          await characteristic.writeValue(chunk);
-        }
-      }
-
-      bleDevice.gatt.disconnect();
-      setProvisionStatus('Provisioning payload sent');
-      toast.success('BLE provisioning sent to device');
-    } catch (error) {
-      const message = error?.message || 'BLE provisioning failed';
-      setProvisionStatus(message);
-      toast.error(message);
-    } finally {
-      setProvisioning(false);
-    }
   };
 
   return (
@@ -328,57 +223,7 @@ export default function DeviceManagement() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                        <Bluetooth className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm text-gray-900">BLE Provisioning</h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Send WiFi, backend URL, device ID, and API key directly to the ESP32.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="grid gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="wifiSsid">WiFi SSID</Label>
-                        <div className="relative">
-                          <Wifi className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                          <Input
-                            id="wifiSsid"
-                            className="pl-9"
-                            placeholder="Home WiFi"
-                            value={wifiForm.ssid}
-                            onChange={(e) => setWifiForm({ ...wifiForm, ssid: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="wifiPassword">WiFi Password</Label>
-                        <Input
-                          id="wifiPassword"
-                          type="password"
-                          placeholder="Password"
-                          value={wifiForm.password}
-                          onChange={(e) => setWifiForm({ ...wifiForm, password: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    {provisionStatus && (
-                      <p className="text-xs text-gray-500">{provisionStatus}</p>
-                    )}
-
-                    <Button type="button" variant="outline" className="w-full dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10"
-                      onClick={provisionWithBle}
-                      disabled={provisioning}
-                    >
-                      <Bluetooth className="w-4 h-4 mr-2" />
-                      {provisioning ? 'Provisioning...' : 'Provision with BLE'}
-                    </Button>
-                  </div>
 
                   <DialogFooter>
                     <Button onClick={closeAndResetDialog}>Done</Button>

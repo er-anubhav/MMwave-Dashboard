@@ -1,0 +1,41 @@
+SUMMARY OF CHANGES COMPLETED
+
+1. UI INPUT CLEANUPS (REACT & FLUTTER)
+--------------------------------------
+* React Frontend: Removed helper warning texts and the "Device Type" selector dropdown from the Link Device dialog in `frontend/src/pages/DeviceManagement.js`. The registered device type now correctly defaults to 'LYFSense_switch'.
+* Flutter Mobile Client: Removed helper instruction texts and the "Device Type" DropdownButtonFormField from the Link Device form dialog in `mobile/lib/screens/device_manage_screen.dart`.
+* Deployment: Committed cleanups and successfully deployed the frontend React app to Vercel production.
+
+2. FIRMWARE HANDOFF ANALYSIS
+----------------------------
+* Extracted and analyzed the newly provided `hmmd_mmwave.zip` firmware codebase.
+* Identified major modifications:
+  - Added Wi-Fi provisioning captive portal logic (`wifi_provisioning.cpp` / `.h`) which boots the AP "MMWave_Switch" if no stored credentials exist or connection fails.
+  - Purged the local async web server and WebSocket dashboard to run headless.
+  - Confirmed hardware pinouts (Pins 16/17 for serial radar, Pin 25 for low-level relay) and inference math remain unchanged.
+* Identified critical bugs/gaps in handoff: The device had a static hardcoded ID, did not push telemetry to the backend, and never initialized calibration since the trigger was deleted with the local web dashboard.
+* Logged findings in `hardware_changes_analysis.md`.
+
+3. OPTION B CLOUD-TRIGGERED CALIBRATION
+---------------------------------------
+* Backend:
+  - Created a memory-resident `CALIBRATION_REQUESTS` cache to hold queued calibration commands.
+  - Implemented the `POST /api/devices/{device_id}/calibrate` endpoint to request calibration (with ownership checking).
+  - Updated `GET /api/command?device_id=...` to inject `"calibrate": true` if requested, automatically clearing the flag on consumption.
+* React Frontend:
+  - Added a "Calibrate" button in `DeviceManagement.js` with a user safety confirmation dialog.
+* Flutter Mobile Client:
+  - Added a `calibrateDevice(deviceId)` call in `DeviceProvider`.
+  - Added a "Calibrate" action button and alert modal in `device_manage_screen.dart`.
+* Cloud Deployment:
+  - Pushed all source files to GitHub repository.
+  - Deployed updated web frontend to Vercel production (https://mmwave-mu.vercel.app).
+  - Copied backend `main.py` via SCP to AWS EC2 VPS production server (54.160.138.185), force-killed the old daemon, restarted the server, and verified health check endpoint response.
+
+4. INTEGRATION CHECKLIST FOR IOT TEAM
+-------------------------------------
+* Created `integration_checklist.md` for your IoT/firmware team with exact implementation requirements:
+  - Generate dynamic device IDs: `STD-MMWAVE-<MAC>` or `PRO-MMWAVE-<MAC>`.
+  - Print the dynamic ID on the setup page (192.168.4.1) and append it to the AP SSID (e.g. `MMWave_AP_STD_...`).
+  - Add client POST telemetry HTTP loops in firmware.
+  - Poll the `GET /api/command?device_id=...` queue to consume the `"calibrate": true` command.

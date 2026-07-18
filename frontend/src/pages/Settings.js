@@ -109,7 +109,7 @@ export default function Settings() {
 
   const { selectedDevice } = useDevice();
   const { mode, handleModeChange, isConnected, lastUpdated } = useDeviceData(selectedDevice);
-  const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+  const isStd = selectedDevice?.device_id?.toUpperCase().startsWith("STD");
 
   useEffect(() => {
     if (isStd) {

@@ -16,7 +16,7 @@ export default function Sidenav() {
     navigate("/login");
   };
 
-  const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+  const isStd = selectedDevice?.device_id?.toUpperCase().startsWith("STD");
 
   const mainLinks = [
     { name: "Overview", path: "/", icon: Home },

@@ -200,7 +200,7 @@ export default function RawData() {
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Status</th>
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Mode</th>
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Activity</th>
-                    {!(selectedDevice?.name?.toUpperCase().includes("STD")) && (
+                    {!(selectedDevice?.device_id?.toUpperCase().startsWith("STD")) && (
                       <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400">Vitals</th>
                     )}
                     <th className="py-3.5 px-6 text-xs  uppercase tracking-wider text-gray-400 text-right">Actions</th>
@@ -237,7 +237,7 @@ export default function RawData() {
                               <span>{sensor.activity ?? "0"}</span>
                             </div>
                           </td>
-                          {!(selectedDevice?.name?.toUpperCase().includes("STD")) && (
+                          {!(selectedDevice?.device_id?.toUpperCase().startsWith("STD")) && (
                             <td className="py-3.5 px-6 text-sm">
                               {sensor.sleep ? (
                                 <div className="flex items-center gap-3 text-xs ">

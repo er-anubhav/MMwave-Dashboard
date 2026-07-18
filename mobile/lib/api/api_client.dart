@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  static const String baseUrl = 'http://3.95.125.222:8000/api';
+  static const String baseUrl = 'http://54.160.138.185:8000/api';
   
   // Callback to trigger logout when refresh fails or session is completely expired
   void Function()? onUnauthorized;

@@ -30,7 +30,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final deviceProvider = Provider.of<DeviceProvider>(context);
     final devices = deviceProvider.devices;
     final selectedDevice = deviceProvider.selectedDevice;
-    final isStd = selectedDevice?.name.toUpperCase().contains('STD') ?? false;
+    final isStd = selectedDevice?.deviceId.toUpperCase().startsWith('STD') ?? false;
 
     final List<Widget> activeTabs = [
       const DashboardTab(),

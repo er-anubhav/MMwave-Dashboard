@@ -282,7 +282,7 @@ export default function DeviceManagement() {
                         required
                       />
                       <p className="text-[11px] text-gray-500 mt-1 dark:text-zinc-400">
-                        * Include <strong>"STD"</strong> in the name for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
+                        * Start the Device ID with <strong>"STD"</strong> for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
                       </p>
                     </div>
 
@@ -448,9 +448,9 @@ export default function DeviceManagement() {
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-zinc-400">Device Type:</span>
                       <span className="text-gray-900 dark:text-primary">
-                        {device.name?.toUpperCase().includes("STD")
+                        {device.device_id?.toUpperCase().startsWith("STD")
                           ? "Standard (STD)"
-                          : device.name?.toUpperCase().includes("PRO")
+                          : device.device_id?.toUpperCase().startsWith("PRO")
                           ? "Pro (PRO)"
                           : device.device_type}
                       </span>
@@ -499,7 +499,7 @@ export default function DeviceManagement() {
                               required
                             />
                             <p className="text-[11px] text-gray-500 mt-1 dark:text-zinc-400">
-                              * Include <strong>"STD"</strong> in the name for Standard (Presence only) or <strong>"PRO"</strong> for Pro (Vitals tracking).
+                              * Tier is determined by the prefix of the Device ID (e.g. STD or PRO).
                             </p>
                           </div>
 

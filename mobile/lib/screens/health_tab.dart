@@ -30,7 +30,7 @@ class _HealthSleepTabState extends State<HealthSleepTab> {
       );
     }
 
-    final isStd = selectedDevice.name.toUpperCase().contains('STD');
+    final isStd = selectedDevice.deviceId.toUpperCase().startsWith('STD');
     if (isStd) {
       return Center(
         child: Padding(
@@ -54,7 +54,7 @@ class _HealthSleepTabState extends State<HealthSleepTab> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${selectedDevice.name} is a Standard (STD) device. Vitals, heartbeat, and sleep tracking are only supported on Pro (PRO) devices.',
+                '${selectedDevice.name} is a Standard (STD) device (determined by ID prefix). Vitals, heartbeat, and sleep tracking are only supported on Pro (PRO) devices.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF9CAAA2),

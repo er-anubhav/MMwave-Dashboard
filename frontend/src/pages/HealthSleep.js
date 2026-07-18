@@ -78,7 +78,7 @@ export default function HealthSleep() {
  );
  }
 
- const isStd = selectedDevice?.name?.toUpperCase().includes("STD");
+ const isStd = selectedDevice?.device_id?.toUpperCase().startsWith("STD");
  if (isStd) {
    return (
      <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">

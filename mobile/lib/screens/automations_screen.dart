@@ -66,7 +66,7 @@ class _AutomationsScreenState extends State<AutomationsScreen> with SingleTicker
 
     final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
     final selectedDevice = deviceProvider.selectedDevice;
-    final isStd = selectedDevice?.name.toUpperCase().contains('STD') ?? false;
+    final isStd = selectedDevice?.deviceId.toUpperCase().startsWith('STD') ?? false;
 
     if (isStd) {
       if (_selectedTrigger == 'sleep state is deep sleep') {

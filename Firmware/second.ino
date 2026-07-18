@@ -22,7 +22,7 @@
 #define POST_INTERVAL_MS       2000
 #define COMMAND_INTERVAL_MS    2000
 
-const char* BASE_URL = "http://3.95.125.222:8000"; // change
+const char* BASE_URL = "http://54.160.138.185:8000"; // change
 const char* API_KEY = "nhJiwM1468aCqpAcB1roi76dtgdQ7OKm3h_RE-A6TGY";
 /* ===================== GLOBAL ===================== */
 

@@ -52,7 +52,7 @@ class _DashboardTabState extends State<DashboardTab> {
     final relayState = telemetry?.relay ?? selectedDevice.desiredRelay;
     final relayMode = telemetry?.relayMode ?? selectedDevice.relayMode;
 
-    final isStd = selectedDevice.name.toUpperCase().contains('STD');
+    final isStd = selectedDevice.deviceId.toUpperCase().startsWith('STD');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),

@@ -50,6 +50,8 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         labelText: 'Device ID',
+                        helperText: '* Start ID with "STD" for Standard or "PRO" for Pro.',
+                        helperStyle: TextStyle(color: Color(0xFF9CAAA2), fontSize: 10),
                         labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFA7DEC5))),
@@ -61,7 +63,7 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         labelText: 'Device Name (Optional)',
-                        helperText: '* Include "STD" in the name for Standard or "PRO" for Pro.',
+                        helperText: '* Tier is determined by the prefix of the Device ID.',
                         helperStyle: TextStyle(color: Color(0xFF9CAAA2), fontSize: 10),
                         labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
@@ -232,7 +234,7 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
               labelText: 'New Name',
-              helperText: '* Include "STD" in the name for Standard or "PRO" for Pro.',
+              helperText: '* Tier is determined by the prefix of the Device ID (e.g. STD or PRO).',
               helperStyle: TextStyle(color: Color(0xFF9CAAA2), fontSize: 10),
               labelStyle: TextStyle(color: Color(0xFF9CAAA2)),
               enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF1F3B2D))),
@@ -442,7 +444,7 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Tier: ${device.name.toUpperCase().contains('STD') ? 'Standard (STD)' : device.name.toUpperCase().contains('PRO') ? 'Pro (PRO)' : device.deviceType}',
+                      'Tier: ${device.deviceId.toUpperCase().startsWith('STD') ? 'Standard (STD)' : device.deviceId.toUpperCase().startsWith('PRO') ? 'Pro (PRO)' : device.deviceType}',
                       style: const TextStyle(
                         color: Color(0xFFA7DEC5),
                         fontSize: 11,

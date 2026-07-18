@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
-import { Trash2, Plus, Edit2, Copy, CheckCircle2, AlertCircle, Link as LinkIcon, RotateCcw, ShieldCheck, Sliders } from 'lucide-react';
+import { Trash2, Plus, Edit2, AlertCircle, Link as LinkIcon, Sliders } from 'lucide-react';
 import api from "../api/api";
 import { toast } from 'sonner';
 import { motion } from "framer-motion";
@@ -39,10 +39,6 @@ export default function DeviceManagement() {
   const { devices, linkDevice, unlinkDevice, updateDevice } = useDevice();
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [rotatedKey, setRotatedKey] = useState('');
-  const [rotatedDeviceId, setRotatedDeviceId] = useState('');
   const [linkForm, setLinkForm] = useState({ deviceId: '', name: '', deviceType: 'LYFSense_switch' });
 
   const handleLinkDevice = async (e) => {
@@ -56,7 +52,8 @@ export default function DeviceManagement() {
 
     if (result.success) {
       toast.success('Device linked successfully!');
-      setApiKey(result.apiKey);
+      setLinkDialogOpen(false);
+      setLinkForm({ deviceId: '', name: '', deviceType: 'LYFSense_switch' });
     } else {
       toast.error(result.error);
     }
@@ -87,33 +84,6 @@ export default function DeviceManagement() {
     }
   };
 
-  const copyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopiedKey(true);
-    toast.success('API key copied to clipboard');
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
-
-  const copyRotatedKey = () => {
-    navigator.clipboard.writeText(rotatedKey);
-    toast.success('New API key copied');
-  };
-
-  const rotateDeviceKey = async (device) => {
-    if (!window.confirm(`Rotate API key for ${device.name}? The device must be reprovisioned with the new key.`)) {
-      return;
-    }
-
-    try {
-      const response = await api.post(`/devices/${device.device_id}/rotate-key`);
-      setRotatedKey(response.data.api_key);
-      setRotatedDeviceId(device.device_id);
-      toast.success('Device API key rotated');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to rotate API key');
-    }
-  };
-
   const handleCalibrateDevice = async (device) => {
     if (!window.confirm(`Trigger calibration for ${device.name}? Make sure the room is empty and stand clear for 5 seconds.`)) {
       return;
@@ -134,8 +104,6 @@ export default function DeviceManagement() {
 
   const closeAndResetDialog = () => {
     setLinkDialogOpen(false);
-    setApiKey('');
-    setCopiedKey(false);
     setLinkForm({ deviceId: '', name: '', deviceType: 'LYFSense_switch' });
   };
 
@@ -163,95 +131,46 @@ export default function DeviceManagement() {
                 </DialogDescription>
               </DialogHeader>
 
-              {!apiKey ? (
-                <form onSubmit={handleLinkDevice}>
-                  <div className="py-2 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="deviceId">Device ID</Label>
-                      <Input
-                        id="deviceId"
-                        placeholder="ESP32_ABC123"
-                        value={linkForm.deviceId}
-                        onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
-                        required
-                      />
-                      <p className="text-xs text-gray-500">
-                        Find this ID on your device or in the device settings
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Device Name</Label>
-                      <Input
-                        id="name"
-                        placeholder="Living Room Switch"
-                        value={linkForm.name}
-                        onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <Button type="button" variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10" onClick={closeAndResetDialog}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Link Device</Button>
-                  </DialogFooter>
-                </form>
-              ) : (
+              <form onSubmit={handleLinkDevice}>
                 <div className="py-2 space-y-4">
-                  <Alert>
-                    <AlertCircle className="w-4 h-4" />
-                    <AlertDescription>
-                      <strong>Important:</strong> Save this API key. You'll need to configure it on your device. This key won't be shown again.
-                    </AlertDescription>
-                  </Alert>
+                  <div className="space-y-2">
+                    <Label htmlFor="deviceId">Device ID</Label>
+                    <Input
+                      id="deviceId"
+                      placeholder="ESP32_ABC123"
+                      value={linkForm.deviceId}
+                      onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      Find this ID on your device or in the device settings
+                    </p>
+                  </div>
 
                   <div className="space-y-2">
-                    <Label>API Key</Label>
-                    <div className="flex gap-2">
-                      <Input value={apiKey} readOnly className="font-mono text-sm" />
-                      <Button
-                        type="button"
-                        variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10"
-                        size="icon"
-                        onClick={copyApiKey}
-                      >
-                        {copiedKey ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                    </div>
+                    <Label htmlFor="name">Device Name</Label>
+                    <Input
+                      id="name"
+                      placeholder="Living Room Switch"
+                      value={linkForm.name}
+                      onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
+                      required
+                    />
                   </div>
-
-
-
-                  <DialogFooter>
-                    <Button onClick={closeAndResetDialog}>Done</Button>
-                  </DialogFooter>
                 </div>
-              )}
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10" onClick={closeAndResetDialog}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Link Device</Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {rotatedKey && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
-            <AlertDescription>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  New API key for <strong>{rotatedDeviceId}</strong>. Provision this key to the device before it sends data.
-                </span>
-                <div className="flex gap-2">
-                  <Input value={rotatedKey} readOnly className="font-mono text-xs bg-white" />
-                  <Button type="button" size="icon" variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10" onClick={copyRotatedKey}>
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
+
 
         {devices.length === 0 ? (
           <Card className="rounded-xl shadow-sm border-gray-100">
@@ -364,14 +283,7 @@ export default function DeviceManagement() {
                       Calibrate
                     </Button>
 
-                    <Button
-                      variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10"
-                      size="sm"
-                      onClick={() => rotateDeviceKey(device)}
-                    >
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Rotate Key
-                    </Button>
+
 
                     <Button
                       variant="destructive"

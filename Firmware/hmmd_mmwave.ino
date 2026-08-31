@@ -1,6 +1,8 @@
+#include "wifi_provisioning.h"
 #include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#include <HTTPClient.h>
+#define DEBOUNCE 50
+
 
 // --- Hardware Definitions ---
 #define RX_PIN 16
@@ -17,13 +19,12 @@ byte buffer[100];
 int bufferIndex = 0;
 bool isSyncing = true;
 
-// --- WebServer & WiFi ---
-const char* ssid = "HMMD";
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+#define DATA_SERVER_URL "http://192.168.16.253:8000/api/data"
+#define DATA_SEND_INTERVAL 1500
+#define TOUCH_PIN 26
 
-unsigned long lastWsUpdate = 0;
-const int WS_INTERVAL = 200; 
+int currentActivity = 0;
+unsigned long lastDataSendTime = 0;
 
 // --- Inference & Calibration Variables ---
 float smoothedEnergy[16] = {0};
@@ -37,8 +38,8 @@ int calibrationSamples = 0;
 
 // User-defined thresholds
 const int MOVING_THRESHOLD = 200;     
-const int STATIONARY_THRESHOLD = 50;  
-const unsigned long ABSENCE_TIMEOUT = 10000; 
+const int STATIONARY_THRESHOLD = 100;  
+const unsigned long ABSENCE_TIMEOUT = 1000; 
 
 enum RoomState { ROOM_EMPTY, ROOM_STATIONARY, ROOM_MOVING };
 RoomState currentState = ROOM_EMPTY;
@@ -48,6 +49,7 @@ String statusText = "Awaiting Calibration...";
 // --- Relay Control Variables ---
 bool isAutoMode = true;
 bool isRelayOn = false;
+unsigned long lastTouchPressTime = 0;
 
 // Helper function to handle the inverted logic of low-level relays
 void setRelay(bool turnOn) {
@@ -60,194 +62,108 @@ void setRelay(bool turnOn) {
 }
 
 
-// --- HTML & JS Dashboard ---
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-<head>
-  <title>HMMD Radar Pro</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
-    h2 { color: #00b0ff; margin-bottom: 5px; }
-    #status { font-size: 22px; font-weight: bold; color: #ffeb3b; margin-bottom: 15px; padding: 10px; border-radius: 5px; background: #333; display: inline-block;}
-    .status-empty { color: #4caf50 !important; }
-    .status-stat { color: #ff9800 !important; }
-    .status-mov { color: #f44336 !important; }
-    
-    .panel { background: #1e1e1e; border: 1px solid #333; border-radius: 10px; padding: 15px; max-width: 800px; margin: 0 auto 20px auto; }
-    button { color: #000; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; margin: 5px; transition: 0.2s;}
-    button:active { transform: scale(0.95); }
-    
-    #calBtn { background-color: #ffeb3b; }
-    #modeBtn { background-color: #9c27b0; color: white; }
-    #relayBtn { background-color: #4caf50; color: white; }
-    .btn-disabled { background-color: #555 !important; color: #888 !important; cursor: not-allowed; transform: none !important;}
-    .btn-off { background-color: #f44336 !important; color: white; }
 
-    .grid { display: flex; flex-wrap: wrap; justify-content: center; max-width: 800px; margin: 0 auto; }
-    .gate { width: 80px; margin: 8px; padding: 15px 10px; background-color: #1e1e1e; border-radius: 10px; border: 1px solid #333; }
-    .gate-label { font-size: 14px; color: #888; margin-bottom: 5px; }
-    .gate-val { font-size: 24px; font-weight: bold; }
-    .active-zone { border-color: #00b0ff; }
-  </style>
-</head>
-<body>
-  <h2>HMMD Auto-Calibrating Radar</h2>
-  <div id="status">Awaiting Calibration...</div><br>
-  
-  <div class="panel">
-    <button id="calBtn" onclick="sendCmd('CALIBRATE')">Calibrate Room</button>
-    <button id="modeBtn" onclick="toggleMode()">Mode: AUTO</button>
-    <button id="relayBtn" onclick="toggleRelay()">Relay: OFF</button>
-  </div>
 
-  <div class="grid" id="gates"></div>
+unsigned long dbnc_tmr = 0;
 
-  <script>
-    const container = document.getElementById('gates');
-    for(let i=0; i<16; i++) {
-      let activeClass = (i >= 2 && i <= 10) ? 'active-zone' : '';
-      container.innerHTML += `<div class='gate ${activeClass}' id='gate${i}'><div class='gate-label'>Gate ${i}</div><div class='gate-val' id='val${i}'>0</div></div>`;
+void handleTouchControl()
+{
+    static bool lastReading = LOW;
+    static bool stableState = LOW;
+
+    bool reading = digitalRead(TOUCH_PIN);
+
+    if (reading != lastReading) {
+        // Input changed, restart debounce timer
+        lastReading = reading;
     }
 
-    var gateway = `ws://${window.location.hostname}/ws`;
-    var websocket;
-    var currentMode = "AUTO";
-    var currentRelay = "OFF";
+    // Has the input remained unchanged for DEBOUNCE ms?
+    if ((millis() - dbnc_tmr) >= DEBOUNCE) {
 
-    function initWebSocket() {
-      websocket = new WebSocket(gateway);
-      websocket.onmessage = onMessage;
-      websocket.onclose = function() { setTimeout(initWebSocket, 2000); };
-    }
+        if (reading != stableState) {
+            stableState = reading;
 
-    function onMessage(event) {
-      let data = event.data.split(',');
-      
-      // 1. Update Gates (Indices 0-15)
-      for(let i=0; i<16; i++) {
-        document.getElementById(`val${i}`).innerText = data[i];
-      }
-      
-      // 2. Update Status Text (Index 16)
-      let statusDiv = document.getElementById('status');
-      let statusMsg = data[16];
-      statusDiv.innerText = statusMsg;
-      statusDiv.className = '';
-      if(statusMsg.includes('EMPTY')) statusDiv.classList.add('status-empty');
-      if(statusMsg.includes('STATIONARY')) statusDiv.classList.add('status-stat');
-      if(statusMsg.includes('MOVING')) statusDiv.classList.add('status-mov');
-
-      // 3. Update Mode & Relay UI (Indices 17 & 18)
-      currentMode = data[17];
-      currentRelay = data[18];
-      
-      let modeBtn = document.getElementById('modeBtn');
-      modeBtn.innerText = `Mode: ${currentMode}`;
-      
-      let relayBtn = document.getElementById('relayBtn');
-      relayBtn.innerText = `Relay: ${currentRelay}`;
-      
-      if(currentMode === "AUTO") {
-        relayBtn.classList.add('btn-disabled');
-        relayBtn.classList.remove('btn-off');
-      } else {
-        relayBtn.classList.remove('btn-disabled');
-        if(currentRelay === "OFF") {
-          relayBtn.classList.add('btn-off');
-        } else {
-          relayBtn.classList.remove('btn-off');
+            // Valid touch detected
+            if (stableState == HIGH) {
+                setRelay(!isRelayOn);
+                Serial.println("State changed");
+            }
         }
-      }
     }
-
-    function sendCmd(cmd) {
-      if(websocket.readyState === WebSocket.OPEN) {
-        websocket.send(cmd);
-      }
-    }
-
-    function toggleMode() {
-      if(currentMode === "AUTO") sendCmd("MODE_MANUAL");
-      else sendCmd("MODE_AUTO");
-    }
-
-    function toggleRelay() {
-      if(currentMode === "AUTO") return; // Prevent clicking in auto mode
-      if(currentRelay === "ON") sendCmd("RELAY_OFF");
-      else sendCmd("RELAY_ON");
-    }
-
-    window.addEventListener('load', initWebSocket);
-  </script>
-</body>
-</html>
-)rawliteral";
-
-
-// --- Handle incoming messages from the webpage ---
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  if (type == WS_EVT_DATA) {
-    String message = "";
-    for (size_t i = 0; i < len; i++) { message += (char)data[i]; }
-    
-    if (message == "CALIBRATE") {
-      isCalibrating = true;
-      isCalibrated = false;
-      calibrationStartTime = millis();
-      calibrationSamples = 0;
-      for (int i = 0; i < 16; i++) { baselineEnergy[i] = 0; }
-      statusText = "Calibrating... Stand clear!";
-      Serial.println("\n[SYSTEM] Calibration Started...");
-    }
-    else if (message == "MODE_AUTO") {
-      isAutoMode = true;
-      Serial.println("[SYSTEM] Mode set to AUTO");
-    }
-    else if (message == "MODE_MANUAL") {
-      isAutoMode = false;
-      Serial.println("[SYSTEM] Mode set to MANUAL");
-    }
-    else if (message == "RELAY_ON" && !isAutoMode) {
-      setRelay(true);
-      Serial.println("[SYSTEM] Manual Relay: ON");
-    }
-    else if (message == "RELAY_OFF" && !isAutoMode) {
-      setRelay(false);
-      Serial.println("[SYSTEM] Manual Relay: OFF");
-    }
-  }
 }
+
+hw_timer_t* timer = NULL;
+void IRAM_ATTR timerISR(){
+  handleTouchControl();
+}
+
+void send_data(void) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[DATA] WiFi not connected, skipping send.");
+    return;
+  }
+
+  String deviceId = String(DEVICE_ID);
+  bool hasPresence = (currentState != ROOM_EMPTY);
+
+  String payload = "{";
+  payload += "\"device_id\":\"" + deviceId + "\",";
+  payload += "\"mode\":\"fall\",";
+  payload += "\"relay\":" + String(isRelayOn ? "true" : "false") + ",";
+  payload += "\"presence\":" + String(hasPresence ? "true" : "false") + ",";
+  payload += "\"activity\":" + String(currentActivity) + ",";
+  payload += "\"fall_detected\":false,";
+  payload += "\"firmware_version\":\"1.0.2\",";
+  payload += "\"wifi_rssi\":" + String(WiFi.RSSI()) + ",";
+  payload += "\"ip_address\":\"" + WiFi.localIP().toString() + "\",";
+  payload += "\"uptime_seconds\":" + String(millis() / 1000);
+  payload += "}";
+
+  WiFiClient client;
+  HTTPClient http;
+  http.begin(client, DATA_SERVER_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpCode = http.POST(payload);
+  String response = http.getString();
+  Serial.println(payload);
+  Serial.print("[DATA] HTTP ");
+  Serial.print(httpCode);
+  Serial.print(" -> ");
+  Serial.println(response);
+  
+  http.end();
+}
+
 
 void setup() {
   Serial.begin(115200);
   delay(1000); 
 
-  // Initialize Relay
+  ensureDeviceId();
+
+  Serial.println("Initializing WiFi connection...");
+  if (!connectToStoredWiFi()) {
+    return;
+  }
+
   pinMode(RELAY_PIN, OUTPUT);
+  pinMode(TOUCH_PIN, INPUT);
   setRelay(false); // Start with relay OFF
+  timer = timerBegin(1000000);  // 1 MHz timer = 1 tick per microsecond
+
+  timerAttachInterrupt(timer, &timerISR);
+
+  timerAlarm(timer, 1000, true, 0);  // 1000 us = 1 ms, auto reload
 
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   Serial2.write(reportModeCmd, sizeof(reportModeCmd));
-
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid);
-  Serial.print("SoftAP Created. IP: ");
-  Serial.println(WiFi.softAPIP());
-
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html);
-  });
-
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
-  server.begin();
-  Serial.println("Server Started.");
+  Serial.println("Radar interface initialized.");
 }
 
-void loop() {
-  ws.cleanupClients();
+void operations(void){
+    handleTouchControl();
 
   while (Serial2.available() > 0) {
     byte incomingByte = Serial2.read();
@@ -275,17 +191,23 @@ void loop() {
       isSyncing = true;
     }
   }
-  
-  vTaskDelay(1);
+
+  if (millis() - lastDataSendTime >= DATA_SEND_INTERVAL) {
+    lastDataSendTime = millis();
+    send_data();
+  }
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == '1') {
+        isCalibrating = true;
+    }
+  }
+}
+void loop() {
+  operations();
 }
 
-void processRadarData(byte* frame) {
-  for (int i = 0; i < 16; i++) {
-    int energyIndex = 9 + (i * 2);
-    int rawEnergy = frame[energyIndex] | (frame[energyIndex + 1] << 8);
-    smoothedEnergy[i] = (rawEnergy * SMOOTHING_FACTOR) + (smoothedEnergy[i] * (1.0 - SMOOTHING_FACTOR));
-  }
-
+void updateCalibration() {
   if (isCalibrating) {
     for (int i = 0; i < 16; i++) {
       baselineEnergy[i] += smoothedEnergy[i];
@@ -301,39 +223,23 @@ void processRadarData(byte* frame) {
       statusText = "ROOM EMPTY";
       Serial.println("[SYSTEM] Calibration Complete.");
     }
-  } 
-  else if (isCalibrated) {
-    runInference();
-  }
-
-  // Send Data to Dashboard
-  if (ws.count() > 0 && millis() - lastWsUpdate > WS_INTERVAL) {
-    String payload = "";
-    payload.reserve(200); 
-    
-    // 1. Pack the 16 Gates
-    for (int i = 0; i < 16; i++) {
-      int displayedEnergy = 0;
-      if (isCalibrated) {
-        displayedEnergy = max(0, (int)(smoothedEnergy[i] - baselineEnergy[i])); 
-      } else {
-        displayedEnergy = (int)smoothedEnergy[i]; 
-      }
-      payload += String(displayedEnergy) + ",";
-    }
-    
-    // 2. Pack the Status, Mode, and Relay State
-    payload += statusText + ",";
-    payload += (isAutoMode ? "AUTO" : "MANUAL") + String(",");
-    payload += (isRelayOn ? "ON" : "OFF");
-    
-    ws.textAll(payload);
-    lastWsUpdate = millis();
   }
 }
 
-void runInference() {
+void inferPresence() {
+  if (!isAutoMode) {
+    statusText = "MANUAL OVERRIDE";
+    Serial.println("manual");
+    return;
+  }
+
+  if (!isCalibrated) {
+    Serial.println("not caliberated");
+    return;
+  }
+
   int maxSpike = 0;
+  currentActivity = 0;
 
   for (int i = 2; i <= 10; i++) {
     int spike = smoothedEnergy[i] - baselineEnergy[i];
@@ -342,20 +248,20 @@ void runInference() {
     }
   }
 
-  // Evaluate State
+  currentActivity = maxSpike;
+
   if (maxSpike >= MOVING_THRESHOLD) {
     currentState = ROOM_MOVING;
     statusText = "HUMAN MOVING";
     lastMovementTime = millis();
-    
-    // Only touch the relay if we are in AUTO mode
+
     if (isAutoMode) setRelay(true); 
   } 
   else if (maxSpike >= STATIONARY_THRESHOLD && currentState != ROOM_EMPTY) {
     currentState = ROOM_STATIONARY;
     statusText = "HUMAN STATIONARY";
     lastMovementTime = millis();
-    
+
     if (isAutoMode) setRelay(true);
   } 
   else {
@@ -364,9 +270,20 @@ void runInference() {
       if (millis() - lastMovementTime > ABSENCE_TIMEOUT) {
         currentState = ROOM_EMPTY;
         statusText = "ROOM EMPTY";
-        
+
         if (isAutoMode) setRelay(false);
       }
     }
   }
+}
+
+void processRadarData(byte* frame) {
+  for (int i = 0; i < 16; i++) {
+    int energyIndex = 9 + (i * 2);
+    int rawEnergy = frame[energyIndex] | (frame[energyIndex + 1] << 8);
+    smoothedEnergy[i] = (rawEnergy * SMOOTHING_FACTOR) + (smoothedEnergy[i] * (1.0 - SMOOTHING_FACTOR));
+  }
+
+  updateCalibration();
+  inferPresence();
 }

@@ -6,6 +6,9 @@ Firmware for the **Waveshare HMMD mmWave Sensor** running on an **ESP32 Dev Modu
 
 The firmware uses **ESP32 Arduino Core 3.x**.
 
+> [!NOTE]
+> For detailed Standard Operating Procedures (SOP), hardware wiring tables, provisioning instructions, and complete code diffs for bi-directional backend synchronization, see the [Firmware SOP Guide](README.md).
+
 ## Folder Structure
 
 The firmware files must be placed inside the `Firmware` folder as shown below:

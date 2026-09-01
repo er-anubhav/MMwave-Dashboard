@@ -906,8 +906,29 @@ async def receive_sensor_data(data: SensorDataUpdate):
     
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save sensor data")
+
+    # Fetch latest command state to send back to device in POST response
+    cmd = database.get_device_command(data.device_id) or {
+        "mode": "fall",
+        "relay": False,
+        "relay_mode": "manual"
+    }
+
+    calibrate = False
+    if data.device_id in CALIBRATION_REQUESTS:
+        calibrate = True
+        CALIBRATION_REQUESTS.remove(data.device_id)
     
-    return {"status": "success", "message": "Data received"}
+    return {
+        "status": "success",
+        "message": "Data received",
+        "command": {
+            "mode": cmd.get("mode", "fall"),
+            "relay": bool(cmd.get("relay", False)),
+            "relay_mode": cmd.get("relay_mode", "manual"),
+            "calibrate": calibrate
+        }
+    }
 
 
 CALIBRATION_REQUESTS = set()

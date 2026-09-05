@@ -20,7 +20,7 @@ byte buffer[100];
 int bufferIndex = 0;
 bool isSyncing = true;
 
-#define DATA_SERVER_URL "https://54.160.138.185:8000/api/data"
+#define DATA_SERVER_URL "http://54.160.138.185:8000/api/data"
 #define DATA_SEND_INTERVAL 1500
 #define TOUCH_PIN 26
 

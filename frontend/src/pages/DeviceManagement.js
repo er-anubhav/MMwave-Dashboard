@@ -90,8 +90,8 @@ export default function DeviceManagement() {
     }
 
     try {
-      await api.post(`/devices/${device.device_id}/calibrate`);
-      toast.success('Calibration command sent successfully');
+      await api.post('/command', { device_id: device.device_id, calibrate: true });
+      toast.success('Calibration command queued. Device will calibrate on next telemetry update.');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to trigger calibration');
     }

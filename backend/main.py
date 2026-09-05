@@ -130,6 +130,14 @@ class RelayUpdate(BaseModel):
     relay_mode: str = Field(default="manual", pattern="^(manual|auto)$")
 
 
+class DeviceCommandRequest(BaseModel):
+    device_id: str
+    relay: Optional[bool] = None
+    relay_mode: Optional[str] = Field(default=None, pattern="^(manual|auto)$")
+    mode: Optional[str] = Field(default=None, pattern="^(fall|sleep)$")
+    calibrate: Optional[bool] = None
+
+
 class RetentionUpdateRequest(BaseModel):
     sensor_record_limit: int = Field(default=1000, ge=100, le=100000)
     log_limit: int = Field(default=1000, ge=100, le=100000)
@@ -917,7 +925,7 @@ async def receive_sensor_data(data: SensorDataUpdate):
     calibrate = False
     if data.device_id in CALIBRATION_REQUESTS:
         calibrate = True
-        CALIBRATION_REQUESTS.remove(data.device_id)
+        CALIBRATION_REQUESTS.discard(data.device_id)
     
     return {
         "status": "success",
@@ -947,7 +955,7 @@ async def get_device_command(device_id: str):
     calibrate = False
     if device_id in CALIBRATION_REQUESTS:
         calibrate = True
-        CALIBRATION_REQUESTS.remove(device_id)
+        CALIBRATION_REQUESTS.discard(device_id)
         
     if command:
         return {
@@ -957,6 +965,82 @@ async def get_device_command(device_id: str):
             "calibrate": calibrate
         }
     return {"mode": "fall", "relay": False, "relay_mode": "manual", "calibrate": calibrate}
+
+
+@app.post("/api/command")
+async def update_device_command(
+    cmd_data: DeviceCommandRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Unified endpoint to control device mode, relay, relay_mode, and trigger calibration"""
+    if not database.verify_device_ownership(cmd_data.device_id, current_user["id"]):
+        raise HTTPException(status_code=403, detail="Device not found or access denied")
+    
+    current_cmd = database.get_device_command(cmd_data.device_id) or {
+        "mode": "fall",
+        "relay": False,
+        "relay_mode": "manual"
+    }
+
+    # Handle relay / relay_mode
+    if cmd_data.relay is not None or cmd_data.relay_mode is not None:
+        target_relay = bool(cmd_data.relay) if cmd_data.relay is not None else current_cmd["relay"]
+        target_relay_mode = cmd_data.relay_mode if cmd_data.relay_mode is not None else current_cmd["relay_mode"]
+        database.update_device_relay(cmd_data.device_id, target_relay, target_relay_mode)
+        event = (
+            "Relay switched to Auto mode"
+            if target_relay_mode == "auto"
+            else f"Relay turned {'ON' if target_relay else 'OFF'}"
+        )
+        database.create_system_log(
+            user_id=current_user["id"],
+            device_id=cmd_data.device_id,
+            event=event,
+            log_type="action",
+            status="Success"
+        )
+
+    # Handle operating mode
+    if cmd_data.mode is not None:
+        database.update_device_mode(cmd_data.device_id, cmd_data.mode)
+        database.create_system_log(
+            user_id=current_user["id"],
+            device_id=cmd_data.device_id,
+            event=f"Mode changed to {cmd_data.mode}",
+            log_type="action",
+            status="Success"
+        )
+
+    # Handle calibration trigger
+    if cmd_data.calibrate is True:
+        CALIBRATION_REQUESTS.add(cmd_data.device_id)
+        database.create_system_log(
+            user_id=current_user["id"],
+            device_id=cmd_data.device_id,
+            event="Calibration requested",
+            log_type="action",
+            status="Success"
+        )
+    elif cmd_data.calibrate is False:
+        CALIBRATION_REQUESTS.discard(cmd_data.device_id)
+
+    updated_cmd = database.get_device_command(cmd_data.device_id) or {
+        "mode": "fall",
+        "relay": False,
+        "relay_mode": "manual"
+    }
+    is_calibrating = cmd_data.device_id in CALIBRATION_REQUESTS
+
+    return {
+        "status": "success",
+        "message": "Command updated successfully",
+        "command": {
+            "mode": updated_cmd.get("mode", "fall"),
+            "relay": bool(updated_cmd.get("relay", False)),
+            "relay_mode": updated_cmd.get("relay_mode", "manual"),
+            "calibrate": is_calibrating
+        }
+    }
 
 
 # ==================== RELAY & MODE ROUTES ====================

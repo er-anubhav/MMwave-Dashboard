@@ -12,7 +12,7 @@
 #define NVS_NAMESPACE "device"
 extern void operations(void);
 extern bool isCalibrated;
-extern bool isCaliberating;
+extern bool isCalibrating;
 extern unsigned long calibrationStartTime;
 extern int calibrationSamples;
 extern float baselineEnergy[16];

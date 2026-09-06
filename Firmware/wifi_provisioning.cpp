@@ -1,5 +1,4 @@
 #include "wifi_provisioning.h"
-
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
@@ -213,6 +212,18 @@ static void startSoftAP()
 void startProvisioning()
 {
     startSoftAP();
+    isCalibrating = true;
+        isCalibrated = false;
+
+        calibrationStartTime = millis();
+        calibrationSamples = 0;
+
+        // Clear previous calibration
+        for (int i = 0; i < 16; i++) {
+          baselineEnergy[i] = 0;
+        }
+
+        Serial.println("[SYSTEM] Calibration Started.");
 
     while (true)
     {

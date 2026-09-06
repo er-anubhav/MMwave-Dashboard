@@ -39,8 +39,8 @@ int calibrationSamples = 0;
 
 // User-defined thresholds
 const int MOVING_THRESHOLD = 200;
-const int STATIONARY_THRESHOLD = 100;
-const unsigned long ABSENCE_TIMEOUT = 1000;
+const int STATIONARY_THRESHOLD = 30;
+const unsigned long ABSENCE_TIMEOUT = 3000;
 
 enum RoomState { ROOM_EMPTY,
                  ROOM_STATIONARY,
@@ -358,15 +358,6 @@ void send_data(void) {
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-
-  ensureDeviceId();
-
-  Serial.println("Initializing WiFi connection...");
-  if (!connectToStoredWiFi()) {
-    return;
-  }
-
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(TOUCH_PIN, INPUT);
   setRelay(false);              // Start with relay OFF
@@ -379,6 +370,16 @@ void setup() {
   Serial2.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   Serial2.write(reportModeCmd, sizeof(reportModeCmd));
   Serial.println("Radar interface initialized.");
+  delay(1000);
+
+  ensureDeviceId();
+
+  Serial.println("Initializing WiFi connection...");
+  if (!connectToStoredWiFi()) {
+    return;
+  }
+
+
 }
 
 void operations(void) {

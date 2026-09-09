@@ -1,0 +1,28 @@
+
+> frontend@0.1.0 start
+> react-scripts start
+
+(node:13448) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+(node:13448) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+(node:13448) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Starting the development server...
+
+Compiled successfully!
+
+You can now view frontend in the browser.
+
+  Local:            http://localhost:3000
+  On Your Network:  http://192.168.23.210:3000
+
+Note that the development build is not optimized.
+To create a production build, use yarn build.
+
+webpack compiled [1m[32msuccessfully[39m[22m
+(node:13448) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+Proxy error: Could not proxy request /api/data?device_id=ESP32_ABC456 from localhost:3000 to http://54.160.138.185:8000.
+See https://nodejs.org/api/errors.html#errors_common_system_errors for more information (ETIMEDOUT).
+

@@ -60,7 +60,7 @@
   "proxy": "http://54.160.138.185:8000",
   "scripts": {
     "start": "react-scripts start",
-    "build": "CI=false react-scripts build",
+    "build": "react-scripts build",
     "test": "react-scripts test"
   },
   "browserslist": {

@@ -56,7 +56,7 @@ export const DeviceProvider = ({ children }) => {
     }
   };
 
-  const linkDevice = async (deviceId, name, deviceType = 'LYFSense_switch') => {
+  const linkDevice = async (deviceId, name, deviceType = 'BlareXSense_switch') => {
     try {
       const response = await api.post(`/devices/link`, {
         device_id: deviceId,

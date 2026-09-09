@@ -1,5 +1,5 @@
 import { Power, Wand2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { cn } from "../lib/utils";
 
 export default function RelayControl({ relayState, relayMode = "manual", onToggle, onModeChange }) {
   const safeOnToggle = typeof onToggle === 'function'
@@ -11,29 +11,33 @@ export default function RelayControl({ relayState, relayMode = "manual", onToggl
   const isAuto = relayMode === "auto";
 
   return (
-    <div className="flex flex-col glass-card shadow-sm rounded-2xl w-full">
-      <div className="p-6 relative z-20">
-        <div className="flex items-start justify-between gap-3 mb-4">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card shadow-surface">
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h6 className="text-base  text-black dark:text-primary">
-              Relay Control
-            </h6>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">Relay Control</h3>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               {isAuto ? "Automations decide relay state" : "Manual override for relay switch"}
             </p>
           </div>
-          <div className="flex rounded-xl border border-gray-200 dark:border-border bg-gray-50/50 dark:bg-background/50 p-1">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5">
             <button
               type="button"
               onClick={() => safeOnModeChange("manual")}
-              className={`h-8 px-3 rounded-lg text-xs  transition-all ${!isAuto ? "bg-white dark:bg-background text-gray-900 dark:text-primary shadow-sm" : "text-gray-500 hover:text-gray-800 dark:text-zinc-200"}`}
+              className={cn(
+                "h-7 rounded px-3 text-xs font-medium transition-colors",
+                !isAuto ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
               Manual
             </button>
             <button
               type="button"
               onClick={() => safeOnModeChange("auto")}
-              className={`h-8 px-3 rounded-lg text-xs  transition-all flex items-center gap-1.5 ${isAuto ? "bg-white dark:bg-background text-gray-900 dark:text-primary shadow-sm" : "text-gray-500 hover:text-gray-800 dark:text-zinc-200"}`}
+              className={cn(
+                "flex h-7 items-center gap-1.5 rounded px-3 text-xs font-medium transition-colors",
+                isAuto ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
               <Wand2 size={12} />
               Auto
@@ -41,47 +45,60 @@ export default function RelayControl({ relayState, relayMode = "manual", onToggl
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 mb-6">
-          <div className={`w-2.5 h-2.5 rounded-full ${relayState ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></div>
-          <span className="text-sm  text-black dark:text-primary tracking-wide">
-            Switch Status: {relayState ? "ON" : "OFF"}
+        {/* Live switch state */}
+        <div className="mt-5 flex items-center justify-between rounded-md border border-border/70 bg-plot px-3.5 py-2.5">
+          <span className="flex items-center gap-2">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                relayState ? "bg-success animate-pulse-dot" : "bg-muted-foreground/40"
+              )}
+            />
+            <span className="text-sm font-medium text-foreground">
+              Switch {relayState ? "ON" : "OFF"}
+            </span>
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {isAuto ? "auto" : "manual"}
           </span>
         </div>
-        
-        <div className="flex gap-4">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
+
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
             data-testid="relay-on-button"
             onClick={() => safeOnToggle(true)}
             disabled={relayState || isAuto}
-            className={`px-5 py-3 rounded-xl border transition-all flex items-center justify-center gap-2 flex-1  text-xs ${
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-md border px-5 py-3 text-xs font-medium transition-colors",
               relayState
-                ? "bg-emerald-600 dark:bg-primary dark:text-black text-white cursor-not-allowed border-emerald-600 dark:border-primary shadow-md shadow-emerald-500/10"
+                ? "cursor-not-allowed border-success/30 bg-success-soft text-success"
                 : isAuto
-                ? "bg-gray-100/50 dark:bg-background/50 text-gray-400 cursor-not-allowed border-gray-200/50 dark:border-border/50"
-                : "bg-white/50 dark:bg-background/50 text-gray-800 dark:text-zinc-200 hover:bg-white dark:hover:bg-background/85 border-gray-200 dark:border-border shadow-sm"
-            }`}
+                ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground"
+                : "border-transparent bg-primary text-primary-foreground hover:bg-primary/90"
+            )}
           >
             <Power size={14} strokeWidth={2.5} />
-            <span>Turn ON</span>
-          </motion.button>
+            Turn ON
+          </button>
 
-          <motion.button
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             data-testid="relay-off-button"
             onClick={() => safeOnToggle(false)}
             disabled={!relayState || isAuto}
-            className={`px-5 py-3 rounded-xl border transition-all flex items-center justify-center gap-2 flex-1  text-xs ${
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-md border px-5 py-3 text-xs font-medium transition-colors",
               !relayState
-                ? "bg-slate-900 dark:bg-zinc-800 text-white cursor-not-allowed border-slate-900 dark:border-zinc-800 shadow-md shadow-slate-950/20"
+                ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground"
                 : isAuto
-                ? "bg-gray-100/50 dark:bg-background/50 text-gray-400 cursor-not-allowed border-gray-200/50 dark:border-border/50"
-                : "bg-white/50 dark:bg-background/50 text-gray-800 dark:text-zinc-200 hover:bg-white dark:hover:bg-background/85 border-gray-200 dark:border-border shadow-sm"
-            }`}
+                ? "cursor-not-allowed border-border bg-muted/40 text-muted-foreground"
+                : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
           >
             <Power size={14} strokeWidth={2.5} />
-            <span>Turn OFF</span>
-          </motion.button>
+            Turn OFF
+          </button>
         </div>
       </div>
     </div>

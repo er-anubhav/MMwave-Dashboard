@@ -3,13 +3,13 @@ import React, { createContext, useContext, useEffect } from "react";
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-    // Dark mode is always on — no toggle allowed
-    const isDarkMode = true;
+    // Light monitoring-console theme is the single visual mode
+    const isDarkMode = false;
 
     useEffect(() => {
         const root = window.document.documentElement;
-        root.classList.add("dark");
-        localStorage.setItem("theme", "dark");
+        root.classList.remove("dark");
+        localStorage.setItem("theme", "light");
     }, []);
 
     // No-op: kept so consumers don't break if they still call it

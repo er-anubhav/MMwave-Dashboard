@@ -1046,8 +1046,8 @@ async def set_mode(
         raise HTTPException(status_code=403, detail="Device not found or access denied")
     
     # Validate mode
-    if mode_data.mode not in ["fall", "sleep"]:
-        raise HTTPException(status_code=400, detail="Invalid mode. Must be 'fall' or 'sleep'")
+    if mode_data.mode not in ["fall", "sleep", "auto", "manual", "intrusion"]:
+        raise HTTPException(status_code=400, detail="Invalid mode. Must be 'fall', 'sleep', 'auto', 'manual', or 'intrusion'")
     
     # Update mode
     success = database.update_device_mode(mode_data.device_id, mode_data.mode)

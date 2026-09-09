@@ -1,17 +1,19 @@
 import { useOutletContext } from "react-router-dom";
 import { useEffect, useState, useCallback } from 'react';
-import { createPortal } from "react-dom";
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Switch } from "../components/ui/switch";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
+import Section from "../components/ui/Section";
+import EmptyState from "../components/ui/EmptyState";
+import PageHeader from "../components/ui/PageHeader";
 import {
-  Database,
   Clock,
-  Activity,
   Download,
   Plus,
   Sun,
@@ -20,91 +22,51 @@ import {
   Play,
   ShieldAlert,
   CalendarDays,
-  ArrowRight,
   MoreVertical,
   SlidersHorizontal,
   Trash2,
   History,
-  Loader2
+  DatabaseBackup,
+  DatabaseZap,
+  Stethoscope,
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 import api from "../api/api";
 import { toast } from 'sonner';
-import { motion } from "framer-motion";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
-
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -10 }
-};
-
-const pageTransition = {
-  type: "tween",
-  ease: "anticipate",
-  duration: 0.3
-};
 
 function getAutomationUi(automationType, title) {
   const lowerTitle = (title || "").toLowerCase();
 
   if (automationType === "routine") {
     if (lowerTitle.includes("morning")) {
-      return {
-        icon: <Sun className="w-5 h-5 text-amber-500" />,
-        color: "bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20",
-        iconBg: "bg-white dark:bg-background/80",
-        secondaryLabel: "Scheduled"
-      };
+      return { icon: <Sun className="h-4 w-4 text-warning" />, secondaryLabel: "Scheduled" };
     }
     if (lowerTitle.includes("sleep") || lowerTitle.includes("bed")) {
-      return {
-        icon: <Moon className="w-5 h-5 text-indigo-500" />,
-        color: "bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/20",
-        iconBg: "bg-white dark:bg-background/80",
-        secondaryLabel: "Night"
-      };
+      return { icon: <Moon className="h-4 w-4 text-primary" />, secondaryLabel: "Night" };
     }
-    return {
-      icon: <CalendarDays className="w-5 h-5 text-emerald-600" />,
-      color: "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20",
-      iconBg: "bg-white dark:bg-background/80",
-      secondaryLabel: "Routine"
-    };
+    return { icon: <CalendarDays className="h-4 w-4 text-primary" />, secondaryLabel: "Routine" };
   }
 
   if (lowerTitle.includes("fall")) {
-    return {
-      icon: <ShieldAlert className="w-5 h-5 text-rose-500" />,
-      color: "bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/20",
-      iconBg: "bg-white dark:bg-background/80",
-      secondaryLabel: "Safety"
-    };
+    return { icon: <ShieldAlert className="h-4 w-4 text-destructive" />, secondaryLabel: "Safety" };
   }
 
   if (lowerTitle.includes("focus") || lowerTitle.includes("movie")) {
-    return {
-      icon: <Play className="w-5 h-5 text-purple-600" />,
-      color: "bg-purple-50 dark:bg-purple-900/10 border-purple-100 dark:border-purple-900/20",
-      iconBg: "bg-white dark:bg-background/80",
-      secondaryLabel: "Custom Logic"
-    };
+    return { icon: <Play className="h-4 w-4 text-primary" />, secondaryLabel: "Custom Logic" };
   }
 
-  return {
-    icon: <Zap className="w-5 h-5 text-emerald-600" />,
-    color: "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20",
-    iconBg: "bg-white dark:bg-background/80",
-    secondaryLabel: "Rule"
-  };
+  return { icon: <Zap className="h-4 w-4 text-primary" />, secondaryLabel: "Rule" };
 }
+
+const fieldClass =
+  "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function Settings() {
   const { setHeaderProps } = useOutletContext();
   useEffect(() => {
-    setHeaderProps({
-      title: "Settings"
-    });
+    setHeaderProps({ title: "Settings" });
   }, [setHeaderProps]);
 
   const { selectedDevice } = useDevice();
@@ -139,6 +101,7 @@ export default function Settings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [createForm, setCreateForm] = useState({
     title: "",
     description: "",
@@ -200,9 +163,7 @@ export default function Settings() {
           runCount: item.run_count || 0,
           lastStatus: item.last_status,
           type: item.automation_type,
-          color: ui.color,
-          icon: ui.icon,
-          iconBg: ui.iconBg
+          icon: ui.icon
         };
       });
 
@@ -333,8 +294,6 @@ export default function Settings() {
   };
 
   const handleDeleteAutomation = async (id) => {
-    if (!window.confirm("Delete this automation?")) return;
-
     try {
       await api.delete(`/automations/${id}`);
       toast.success("Automation deleted");
@@ -404,419 +363,454 @@ export default function Settings() {
     return new Date(value).toLocaleString();
   };
 
-  return (
-    <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full pb-10">
-      <main className="flex-1 space-y-8">
-        
-        {/* --- SYSTEM & BACKUPS SECTION --- */}
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 dark:text-primary mb-1">System & Backup</h2>
-            <p className="text-sm text-gray-500">Manage database retention, backups, and view local server diagnostics.</p>
-          </div>
+  const renderAutomationCards = (items, toggleFn, isRule) => (
+    <div className={isRule ? "grid grid-cols-1 gap-4 lg:grid-cols-2" : "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"}>
+      {items.map((item) => (
+        <Card key={item.id} className={`group overflow-hidden ${item.active ? "" : "opacity-70"}`}>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary/60">
+                  {item.icon}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold tracking-tight text-foreground">{item.title}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.condition}</p>
+                </div>
+              </div>
+              <Switch
+                checked={item.active}
+                onCheckedChange={() => toggleFn(item.id)}
+                aria-label={`Toggle ${item.title}`}
+              />
+            </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* Local Backup */}
-            <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base font-medium">
-                  <Database className="w-4 h-4 text-emerald-600" />
-                  Local Backup
-                </CardTitle>
-                <CardDescription>Export dashboard data from this local backend.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2">
-                <Button variant="outline" className="dark:text-primary dark:border-primary/30 dark:hover:bg-primary/10" onClick={() => downloadBackup(false)}>
-                  <Download className="w-4 h-4 mr-2" />
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{item.time}</span>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-3">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {item.tags.map((tag, i) => (
+                  <Badge key={i} variant="secondary" className="px-2 py-0.5 text-[11px]">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleEditAutomation(item)}
+                  aria-label={`Edit ${item.title}`}
+                  className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(item.id)}
+                  aria-label={`Delete ${item.title}`}
+                  className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const addTile = (label, onClick, compact = false) => (
+    <button
+      onClick={onClick}
+      type="button"
+      className={`flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-transparent text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground ${compact ? "py-4" : "py-8"}`}
+    >
+      <Plus className="h-4 w-4" />
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="flex flex-col gap-8 pb-10">
+      <PageHeader
+        title="Settings"
+        description="Automation rules, system retention, backups, and local diagnostics."
+      />
+
+      {/* ── SYSTEM & BACKUP ── */}
+      <Section
+        title="System & Backup"
+        description="Manage database retention, backups, and local server diagnostics."
+      >
+        <div className="rounded-lg border border-border bg-card shadow-surface-sm">
+          {/* Backup */}
+          <div className="p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary">
+                  <DatabaseBackup className="h-4 w-4 text-primary" />
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold tracking-tight text-foreground">Backup</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Export dashboard data from this local backend.
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadBackup(false)}>
+                  <Download className="h-3.5 w-3.5" />
                   Export Backup
                 </Button>
-                <Button variant="ghost" onClick={() => downloadBackup(true)}>
-                  <Download className="w-4 h-4 mr-2" />
+                <Button variant="ghost" size="sm" onClick={() => downloadBackup(true)}>
                   Export With Keys
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Retention */}
-            <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base font-medium">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  Retention
-                </CardTitle>
-                <CardDescription>Control local database growth.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="sensorLimit" className="text-xs">Sensor records</Label>
-                    <Input
-                      id="sensorLimit"
-                      type="number"
-                      min="100"
-                      max="100000"
-                      value={retention.sensor_record_limit}
-                      onChange={(e) => setRetention({ ...retention, sensor_record_limit: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="logLimit" className="text-xs">Logs</Label>
-                    <Input
-                      id="logLimit"
-                      type="number"
-                      min="100"
-                      max="100000"
-                      value={retention.log_limit}
-                      onChange={(e) => setRetention({ ...retention, log_limit: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <Button onClick={saveRetention} className="w-full">Save Retention</Button>
-              </CardContent>
-            </Card>
-
-            {/* Diagnostics */}
-            <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base font-medium">
-                  <Activity className="w-4 h-4 text-purple-600" />
-                  Diagnostics
-                </CardTitle>
-                <CardDescription>Quick local backend status.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-gray-500 text-xs">Devices</p>
-                  <p className="text-gray-900 dark:text-primary font-medium">{diagnostics?.devices?.online || 0} online / {diagnostics?.devices?.total || 0}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">DB size</p>
-                  <p className="text-gray-900 dark:text-primary font-medium">{diagnostics?.database?.database_size_mb ?? 0} MB</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Scheduler</p>
-                  <p className="text-gray-900 dark:text-primary font-medium">{diagnostics?.scheduler?.interval_seconds || 30}s</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">Recent errors</p>
-                  <p className="text-gray-900 dark:text-primary font-medium">{diagnostics?.logs?.recent_errors?.length || 0}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <div className="border-t border-gray-200 dark:border-border" />
-
-        {/* --- AUTOMATIONS SECTION --- */}
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-medium text-gray-900 dark:text-primary mb-1">Automations</h2>
-            <p className="text-sm text-gray-500">Configure daily routines and automation rules triggered by sensor events.</p>
+              </div>
+            </div>
           </div>
 
-          {!selectedDevice ? (
-            <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <SlidersHorizontal className="h-16 w-16 text-gray-300 dark:text-primary mb-4" />
-                <h3 className="text-base text-gray-900 dark:text-primary mb-2">Select a device</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-center">
-                  Use the device selector to choose a device to manage automations for.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <Tabs value={activeAutoTab} onValueChange={setActiveAutoTab} className="w-full">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
-                  <TabsList className="bg-white dark:bg-background border border-gray-200 dark:border-border shadow-sm p-1 rounded-lg h-auto">
-                    <TabsTrigger value="routines" className="rounded-md px-6 py-2.5 text-sm data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-slate-800 dark:bg-background data-[state=active]:text-gray-900 dark:text-primary data-[state=active]:shadow-none transition-all">
-                      <CalendarDays className="w-4 h-4 mr-2" />
-                      Daily Routines
-                    </TabsTrigger>
-                    <TabsTrigger value="rules" className="rounded-md px-6 py-2.5 text-sm data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-slate-800 dark:bg-background data-[state=active]:text-gray-900 dark:text-primary data-[state=active]:shadow-none transition-all">
-                      <Zap className="w-4 h-4 mr-2" />
-                      Activity Rules
-                    </TabsTrigger>
-                  </TabsList>
-                  <Button onClick={() => setIsModalOpen(true)} className="bg-emerald-600 dark:bg-primary dark:text-black hover:bg-emerald-700 dark:hover:bg-primary/90 text-white shadow-sm flex items-center gap-2 rounded-lg px-5">
-                    <Plus size={18} />
-                    Create New Rule
-                  </Button>
-                </div>
+          <div className="h-px bg-border" />
 
-                {/* Routines View */}
-                <TabsContent value="routines" className="mt-0 outline-none animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {routines.map((routine) => (
-                      <Card key={routine.id} className={`overflow-hidden transition-all duration-300 border shadow-sm hover:shadow-md group ${routine.active ? routine.color : "bg-white dark:bg-background border-gray-200 dark:border-border opacity-80"}`}>
-                        <div className="p-5">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className={`p-2.5 rounded-xl shadow-sm border ${routine.active ? routine.iconBg + ' border-[#ffffff40]' : 'bg-gray-100 dark:bg-background border-gray-200 dark:border-border'}`}>
-                              {routine.icon}
-                            </div>
-                            <Switch
-                              checked={routine.active}
-                              onCheckedChange={() => toggleRoutine(routine.id)}
-                              className={routine.active ? "data-[state=checked]:bg-emerald-500" : ""}
-                            />
-                          </div>
-
-                          <div className="mb-4">
-                            <h3 className={`text-lg mb-1 ${routine.active ? 'text-gray-900 dark:text-primary' : 'text-gray-500'}`}>
-                              {routine.title}
-                            </h3>
-                            <p className={`text-sm leading-relaxed min-h-[40px] ${routine.active ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400'}`}>
-                              {routine.description}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-2 mb-5">
-                            <Clock className={`w-4 h-4 ${routine.active ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400'}`} />
-                            <span className={`text-sm ${routine.active ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400'}`}>
-                              {routine.time}
-                            </span>
-                          </div>
-
-                          <div className="mb-5 text-xs text-gray-500">
-                            <p>Last run: {formatLastRun(routine.lastRunAt)}</p>
-                            <p>Runs: {routine.runCount}{routine.lastStatus ? ` · ${routine.lastStatus}` : ""}</p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 pt-4 border-t border-black/5">
-                            {routine.tags.map((tag, i) => (
-                              <Badge key={i} variant="secondary" className={` text-xs px-2.5 py-0.5 rounded-md ${routine.active ? 'bg-white dark:bg-background/60 text-gray-700 dark:text-zinc-300' : 'bg-gray-100 dark:bg-background text-gray-400'}`}>
-                                {tag}
-                              </Badge>
-                            ))}
-                            <button onClick={() => handleEditAutomation(routine)} className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/5`}>
-                              <MoreVertical className="w-4 h-4 text-gray-500" />
-                            </button>
-                            <button onClick={() => handleDeleteAutomation(routine.id)} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-black/5`}>
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-
-                    {!loadingAutomations && routines.length === 0 && (
-                      <Card className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-border bg-white dark:bg-background min-h-[260px] rounded-xl">
-                        <p className="text-gray-700 dark:text-zinc-300">No routines yet for this device</p>
-                        <p className="text-sm text-gray-500 mt-1">Create your first routine automation</p>
-                      </Card>
-                    )}
-
-                    <Card className="flex flex-col items-center justify-center p-6 border-dashed border-2 border-gray-200 dark:border-border bg-gray-50 dark:bg-background/50 hover:bg-gray-50 dark:bg-background transition-colors cursor-pointer min-h-[260px] rounded-xl group" onClick={() => setIsModalOpen(true)}>
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <Plus className="w-6 h-6" />
-                      </div>
-                      <p className="text-gray-700 dark:text-zinc-300">Add New Routine</p>
-                      <p className="text-sm text-gray-500 mt-1 max-w-[200px] text-center">Create a schedule-based automation</p>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                {/* Rules View */}
-                <TabsContent value="rules" className="mt-0 outline-none animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                    {rules.map((rule) => (
-                      <Card key={rule.id} className={`overflow-hidden transition-all duration-300 border shadow-sm hover:shadow-md group ${rule.active ? rule.color : "bg-white dark:bg-background border-gray-200 dark:border-border opacity-80"}`}>
-                        <div className="p-6 flex flex-col sm:flex-row gap-5 items-start">
-                          <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${rule.active ? rule.iconBg + ' border-[#ffffff40]' : 'bg-gray-100 dark:bg-background border-gray-200 dark:border-border'}`}>
-                            {rule.icon}
-                          </div>
-                          <div className="flex-1 w-full">
-                            <div className="flex justify-between items-start mb-1">
-                              <h3 className={`text-lg ${rule.active ? 'text-gray-900 dark:text-primary' : 'text-gray-500'}`}>
-                                {rule.title}
-                              </h3>
-                              <Switch
-                                checked={rule.active}
-                                onCheckedChange={() => toggleRule(rule.id)}
-                                className={rule.active ? "data-[state=checked]:bg-emerald-500" : ""}
-                              />
-                            </div>
-                            <p className={`text-sm mb-4 leading-relaxed ${rule.active ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400'}`}>
-                              {rule.description}
-                            </p>
-                            <div className="mb-4 text-xs text-gray-500">
-                              <p>Last run: {formatLastRun(rule.lastRunAt)}</p>
-                              <p>Runs: {rule.runCount}{rule.lastStatus ? ` · ${rule.lastStatus}` : ""}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-auto pt-4 border-t border-black/5">
-                              <div className="flex flex-wrap gap-2">
-                                {rule.tags.map((tag, i) => (
-                                  <Badge key={i} variant="outline" className={` text-xs px-2.5 py-0.5 rounded-md border-black/10 ${rule.active ? 'bg-white dark:bg-background/50 text-gray-700 dark:text-zinc-300' : 'bg-gray-50 dark:bg-background text-gray-400 border-gray-200 dark:border-border'}`}>
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleEditAutomation(rule)} className={`gap-1 text-xs h-8 hover:bg-white dark:bg-background/50 ${rule.active ? 'text-gray-700 dark:text-zinc-300' : 'text-gray-400'}`}>
-                                  Configure <ArrowRight className="w-3 h-3" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleDeleteAutomation(rule.id)} className="gap-1 text-xs h-8 text-red-600 hover:bg-red-50">
-                                  Remove
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-
-                    {!loadingAutomations && rules.length === 0 && (
-                      <Card className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-border bg-white dark:bg-background min-h-[180px] rounded-xl">
-                        <p className="text-gray-700 dark:text-zinc-300">No activity rules yet for this device</p>
-                        <p className="text-sm text-gray-500 mt-1">Create your first condition-based rule</p>
-                      </Card>
-                    )}
-
-                    <Card className="flex flex-col items-center justify-center p-6 border-dashed border-2 border-gray-200 dark:border-border bg-gray-50 dark:bg-background/50 hover:bg-gray-50 dark:bg-background transition-colors cursor-pointer min-h-[180px] rounded-xl group" onClick={() => setIsModalOpen(true)}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Plus className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-gray-700 dark:text-zinc-300">Add Custom Rule</p>
-                          <p className="text-sm text-gray-500 mt-0.5">Define logic based on activity & vitals</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                </TabsContent>
-              </Tabs>
-
-              {/* Automation Run History */}
-              <Card className="border border-gray-200 dark:border-border bg-white dark:bg-background shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-emerald-600" />
-                      <h3 className="text-base text-gray-900 dark:text-primary">Automation Run History</h3>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={loadAutomations}>Refresh</Button>
-                  </div>
-                  <div className="grid gap-2">
-                    {automationHistory.length === 0 ? (
-                      <p className="text-sm text-gray-500">No automation runs recorded yet.</p>
-                    ) : (
-                      automationHistory.map((item) => (
-                        <div key={item.id} className="flex flex-col gap-1 rounded-lg border border-gray-100 dark:border-border bg-gray-50 dark:bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="text-sm text-gray-900 dark:text-primary">{item.event}</p>
-                            <p className="text-xs text-gray-500">
-                              {(item.metadata?.action || "Action")} {item.metadata?.result ? `· ${item.metadata.result}` : ""}
-                            </p>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {item.created_at ? new Date(item.created_at).toLocaleString() : "Just now"}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Retention */}
+          <div className="p-5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary">
+                <DatabaseZap className="h-4 w-4 text-primary" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold tracking-tight text-foreground">Retention</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">Control local database growth.</p>
+              </div>
             </div>
-          )}
-        </section>
-      </main>
-
-      {/* Automations Modal Portal */}
-      {isModalOpen && createPortal(
-        <div
-          className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
-          style={{ zIndex: 9999 }}
-          onClick={() => { setIsModalOpen(false); setEditingAutomation(null); resetCreateForm(); }}
-        >
-          <Card className="w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-gray-100 dark:border-border bg-white dark:bg-background">
-              <h2 className="text-xl text-gray-900 dark:text-primary">{editingAutomation ? "Edit Automation" : "Create New Automation"}</h2>
-              <p className="text-sm text-gray-500">This will be saved to your selected device</p>
-            </div>
-            <CardContent className="p-6 bg-gray-50 dark:bg-background flex flex-col gap-4">
-              <div className="grid gap-2">
-                <label className="text-sm text-gray-700 dark:text-zinc-300">Automation Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Nightlight mode"
-                  value={createForm.title}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file: placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm text-gray-700 dark:text-zinc-300">Description</label>
-                <input
-                  type="text"
-                  placeholder="What this automation does"
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file: placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm text-gray-700 dark:text-zinc-300">When this happens (Trigger)</label>
-                <select
-                  value={createForm.trigger}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, trigger: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                >
-                  <option value="Specific Time">Specific Time</option>
-                  <option>Presence detected</option>
-                  <option>Fall detected</option>
-                  {!isStd && <option>Sleep state is Deep Sleep</option>}
-                </select>
-              </div>
-              {createForm.trigger === "Specific Time" && (
-                <div className="grid gap-2 animate-in slide-in-from-top-1 duration-200">
-                  <label className="text-sm text-gray-700 dark:text-zinc-300">Select Time</label>
-                  <input
-                    type="time"
-                    value={createForm.timeInput}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, timeInput: e.target.value }))}
-                    className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                  />
-                </div>
-              )}
-              <div className="grid gap-2 mb-4">
-                <label className="text-sm text-gray-700 dark:text-zinc-300">Do this (Action)</label>
-                <select
-                  value={createForm.action}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, action: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                >
-                  {!isStd && <option>Set mode to Sleep</option>}
-                  <option>Set mode to Fall Detection</option>
-                  <option>Turn Relay ON</option>
-                  <option>Turn Relay OFF</option>
-                </select>
-              </div>
-              <div className="grid gap-2 mb-4">
-                <label className="text-sm text-gray-700 dark:text-zinc-300">Cooldown seconds</label>
-                <input
+            <div className="mt-4 grid max-w-xl grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="sensorLimit" className="text-xs text-muted-foreground">Sensor records</Label>
+                <Input
+                  id="sensorLimit"
                   type="number"
-                  min="5"
-                  step="5"
-                  value={createForm.cooldownSeconds}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, cooldownSeconds: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                  min="100"
+                  max="100000"
+                  value={retention.sensor_record_limit}
+                  onChange={(e) => setRetention({ ...retention, sensor_record_limit: e.target.value })}
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-border">
-                <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingAutomation(null); resetCreateForm(); }}>Cancel</Button>
-                <Button className="bg-emerald-600 dark:bg-primary dark:text-black hover:bg-emerald-700 dark:hover:bg-primary/90 text-white" disabled={isSaving} onClick={handleCreateAutomation}>
-                  {isSaving ? "Saving..." : (editingAutomation ? "Update Automation" : "Save Rule")}
-                </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="logLimit" className="text-xs text-muted-foreground">Logs</Label>
+                <Input
+                  id="logLimit"
+                  type="number"
+                  min="100"
+                  max="100000"
+                  value={retention.log_limit}
+                  onChange={(e) => setRetention({ ...retention, log_limit: e.target.value })}
+                />
               </div>
+            </div>
+            <Button variant="secondary" className="mt-4" onClick={saveRetention}>Save Retention</Button>
+          </div>
+
+          <div className="h-px bg-border" />
+
+          {/* Diagnostics */}
+          <div className="p-5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-success-soft">
+                <Stethoscope className="h-4 w-4 text-success" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold tracking-tight text-foreground">Diagnostics</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">Quick local backend status.</p>
+              </div>
+            </div>
+            <div className="mt-4 grid max-w-xl grid-cols-2 gap-x-8 gap-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Devices</p>
+                <p className="mt-0.5 font-numeric text-sm font-semibold text-foreground">
+                  {diagnostics?.devices?.online || 0} online / {diagnostics?.devices?.total || 0}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Database size</p>
+                <p className="mt-0.5 font-numeric text-sm font-semibold text-foreground">
+                  {diagnostics?.database?.database_size_mb ?? 0} MB
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Scheduler</p>
+                <p className="mt-0.5 font-numeric text-sm font-semibold text-foreground">
+                  {diagnostics?.scheduler?.interval_seconds || 30}s
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Recent errors</p>
+                <p
+                  className={cn(
+                    "mt-0.5 font-numeric text-sm font-semibold",
+                    (diagnostics?.logs?.recent_errors?.length || 0) > 0 ? "text-destructive" : "text-success"
+                  )}
+                >
+                  {diagnostics?.logs?.recent_errors?.length || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── AUTOMATIONS ── */}
+      <Section
+        title="Automations"
+        description="Configure daily routines and automation rules triggered by sensor events."
+        action={
+          <Button onClick={() => { setEditingAutomation(null); resetCreateForm(); setIsModalOpen(true); }}>
+            <Plus className="h-4 w-4" />
+            Create New Rule
+          </Button>
+        }
+      >
+        {!selectedDevice ? (
+          <Card className="rounded-lg border border-border bg-card">
+            <CardContent>
+              <EmptyState
+                icon={<SlidersHorizontal className="h-5 w-5" />}
+                title="Select a device"
+                description="Use the device selector to choose a device to manage automations for."
+              />
             </CardContent>
           </Card>
-        </div>,
-        document.body
-      )}
-    </motion.div>
+        ) : (
+          <div className="space-y-6">
+            <Tabs value={activeAutoTab} onValueChange={setActiveAutoTab} className="w-full">
+              <TabsList className="flex h-auto w-full justify-start gap-6 border-b border-border bg-transparent p-0">
+                <TabsTrigger
+                  value="routines"
+                  className="rounded-none border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Daily Routines
+                </TabsTrigger>
+                <TabsTrigger
+                  value="rules"
+                  className="rounded-none border-b-2 border-transparent pb-2.5 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Activity Rules
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Routines View */}
+              <TabsContent value="routines" className="mt-5 outline-none">
+                {loadingAutomations ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">Loading routines…</p>
+                ) : routines.length === 0 ? (
+                  <Card className="rounded-lg border border-border bg-card">
+                    <CardContent>
+                      <EmptyState
+                        icon={<CalendarDays className="h-5 w-5" />}
+                        title="No routines configured"
+                        description="Create a routine to automatically respond to sensor events and daily schedules."
+                        action={
+                          <Button size="sm" onClick={() => { setEditingAutomation(null); resetCreateForm(); setIsModalOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                            Create routine
+                          </Button>
+                        }
+                      />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {renderAutomationCards(routines, toggleRoutine, false)}
+                    {addTile("Add routine", () => { setEditingAutomation(null); resetCreateForm(); setIsModalOpen(true); }, true)}
+                  </>
+                )}
+              </TabsContent>
+
+              {/* Rules View */}
+              <TabsContent value="rules" className="mt-5 outline-none">
+                {loadingAutomations ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">Loading rules…</p>
+                ) : rules.length === 0 ? (
+                  <Card className="rounded-lg border border-border bg-card">
+                    <CardContent>
+                      <EmptyState
+                        icon={<Zap className="h-5 w-5" />}
+                        title="No activity rules configured"
+                        description="Create a rule that responds to sensor activity and vital events."
+                        action={
+                          <Button size="sm" onClick={() => { setEditingAutomation(null); resetCreateForm(); setIsModalOpen(true); }}>
+                            <Plus className="h-4 w-4" />
+                            Create rule
+                          </Button>
+                        }
+                      />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {renderAutomationCards(rules, toggleRule, true)}
+                    {addTile("Add rule", () => { setEditingAutomation(null); resetCreateForm(); setIsModalOpen(true); }, true)}
+                  </>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Automation Run History */}
+            <Card className="border-border">
+              <CardContent className="p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">Automation Run History</h3>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={loadAutomations}>Refresh</Button>
+                </div>
+                <div className="grid gap-1.5">
+                  {automationHistory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No automation runs recorded yet.</p>
+                  ) : (
+                    automationHistory.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{item.event}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(item.metadata?.action || "Action")} {item.metadata?.result ? `· ${item.metadata.result}` : ""}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-xs text-muted-foreground">
+                          {item.created_at ? new Date(item.created_at).toLocaleString() : "Just now"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Automation Modal ── */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open);
+        if (!open) { setEditingAutomation(null); resetCreateForm(); }
+      }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingAutomation ? "Edit Automation" : "Create New Automation"}</DialogTitle>
+            <DialogDescription>
+              {editingAutomation ? "Update the automation configuration." : "This will be saved to your selected device."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="automation-title" className="text-sm text-foreground">Automation Title</Label>
+              <Input
+                id="automation-title"
+                type="text"
+                placeholder="e.g. Nightlight mode"
+                value={createForm.title}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="automation-desc" className="text-sm text-foreground">Description</Label>
+              <Input
+                id="automation-desc"
+                type="text"
+                placeholder="What this automation does"
+                value={createForm.description}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="automation-trigger" className="text-sm text-foreground">When this happens (Trigger)</Label>
+              <select
+                id="automation-trigger"
+                value={createForm.trigger}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, trigger: e.target.value }))}
+                className={fieldClass}
+              >
+                <option value="Specific Time">Specific Time</option>
+                <option>Presence detected</option>
+                <option>Fall detected</option>
+                {!isStd && <option>Sleep state is Deep Sleep</option>}
+              </select>
+            </div>
+
+            {createForm.trigger === "Specific Time" && (
+              <div className="grid gap-2">
+                <Label htmlFor="automation-time" className="text-sm text-foreground">Select Time</Label>
+                <Input
+                  id="automation-time"
+                  type="time"
+                  value={createForm.timeInput}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, timeInput: e.target.value }))}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="automation-action" className="text-sm text-foreground">Do this (Action)</Label>
+              <select
+                id="automation-action"
+                value={createForm.action}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, action: e.target.value }))}
+                className={fieldClass}
+              >
+                {!isStd && <option>Set mode to Sleep</option>}
+                <option>Set mode to Fall Detection</option>
+                <option>Turn Relay ON</option>
+                <option>Turn Relay OFF</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="automation-cooldown" className="text-sm text-foreground">Cooldown seconds</Label>
+              <Input
+                id="automation-cooldown"
+                type="number"
+                min="5"
+                step="5"
+                value={createForm.cooldownSeconds}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, cooldownSeconds: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingAutomation(null); resetCreateForm(); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateAutomation} disabled={isSaving}>
+              {isSaving ? "Saving…" : (editingAutomation ? "Update Automation" : "Save Rule")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation ── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete automation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the automation and its run history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleDeleteAutomation(deleteTarget)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

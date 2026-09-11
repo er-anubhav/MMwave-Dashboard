@@ -66,6 +66,7 @@ export default function DeviceDetail() {
     relayState,
     relayMode,
     handleModeChange,
+    handleRelayToggle,
   } = useDeviceData(device);
 
   useEffect(() => {
@@ -95,14 +96,7 @@ export default function DeviceDetail() {
   const toggleRelay = async () => {
     setTogglingRelay(true);
     try {
-      await api.post(`/relay`, {
-        device_id: device.device_id,
-        state: !relayState,
-        mode: "manual",
-      });
-      toast.success(`Appliance switch turned ${!relayState ? "ON" : "OFF"}`);
-    } catch (err) {
-      toast.error("Failed to update switch");
+      await handleRelayToggle(!relayState);
     } finally {
       setTogglingRelay(false);
     }

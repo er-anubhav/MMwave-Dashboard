@@ -132,7 +132,9 @@ class ModeUpdate(BaseModel):
 class RelayUpdate(BaseModel):
     device_id: str
     relay: Optional[bool] = None
-    relay_mode: str = Field(default="manual", pattern="^(manual|auto)$")
+    state: Optional[bool] = None  # Backward-compatible alias for relay
+    relay_mode: Optional[str] = Field(default=None, pattern="^(manual|auto)$")
+    mode: Optional[str] = Field(default=None, pattern="^(manual|auto)$")  # Backward-compatible alias for relay_mode
 
 
 class RetentionUpdateRequest(BaseModel):
@@ -1015,18 +1017,23 @@ async def set_relay(
     if not database.verify_device_ownership(relay_data.device_id, current_user["id"]):
         raise HTTPException(status_code=403, detail="Device not found or access denied")
     
-    relay = bool(relay_data.relay) if relay_data.relay is not None else (
+    # Support both 'relay' and backward-compatible 'state'
+    requested_relay = relay_data.relay if relay_data.relay is not None else relay_data.state
+    relay = bool(requested_relay) if requested_relay is not None else (
         database.get_device_command(relay_data.device_id) or {"relay": False}
     )["relay"]
 
+    # Support both 'relay_mode' and backward-compatible 'mode'
+    effective_mode = relay_data.relay_mode or relay_data.mode or "manual"
+
     # Update relay state
-    success = database.update_device_relay(relay_data.device_id, relay, relay_data.relay_mode)
+    success = database.update_device_relay(relay_data.device_id, relay, effective_mode)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update relay state")
 
     event = (
         "Relay switched to Auto mode"
-        if relay_data.relay_mode == "auto"
+        if effective_mode == "auto"
         else f"Relay turned {'ON' if relay else 'OFF'}"
     )
     database.create_system_log(
@@ -1037,7 +1044,7 @@ async def set_relay(
         status="Success"
     )
     
-    return {"status": "success", "relay": relay, "relay_mode": relay_data.relay_mode}
+    return {"status": "success", "relay": relay, "relay_mode": effective_mode}
 
 
 @app.get("/api/mode")

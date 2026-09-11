@@ -62,17 +62,21 @@ function ConsumerDeviceCard({ device, navigate, handleChangeMode }) {
   const isOccupied = data?.sensor_data?.presence ?? false;
   const isOnline = device.status === "online";
 
-  const toggleRelay = async () => {
+  const toggleRelay = async (checked) => {
+    const nextState = typeof checked === "boolean" ? checked : !relayState;
     setTogglingRelay(true);
+    // Optimistic local state update to prevent switch UI jitter
+    setData((prev) => prev ? { ...prev, relay: nextState } : prev);
     try {
       await api.post(`/relay`, {
         device_id: device.device_id,
-        state: !relayState,
-        mode: "manual",
+        relay: nextState,
+        relay_mode: "manual",
       });
-      setData((prev) => prev ? { ...prev, relay: !relayState } : prev);
-      toast.success(`${device.name} switch turned ${!relayState ? "ON" : "OFF"}`);
+      toast.success(`${device.name} switch turned ${nextState ? "ON" : "OFF"}`);
     } catch (err) {
+      // Revert on error
+      setData((prev) => prev ? { ...prev, relay: relayState } : prev);
       toast.error("Failed to update switch");
     } finally {
       setTogglingRelay(false);

@@ -1,26 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Bell, Heart, Shield, Settings } from "lucide-react";
+import { Home, Bell } from "lucide-react";
 import { useDevice } from "../contexts/DeviceContext";
 import { cn } from "../lib/utils";
 
 export function useNavGroups() {
-  const { selectedDevice } = useDevice();
-  const isStd = selectedDevice?.device_id?.toUpperCase().startsWith("STD");
-
   return [
     {
       label: "Monitor",
       items: [
         { name: "Overview", path: "/", icon: Home },
         { name: "Alerts", path: "/notifications", icon: Bell },
-        ...(!isStd ? [{ name: "Health & Sleep", path: "/health", icon: Heart }] : []),
-        { name: "Security & Activity", path: "/security", icon: Shield },
-      ],
-    },
-    {
-      label: "Manage",
-      items: [
-        { name: "Settings", path: "/settings", icon: Settings },
       ],
     },
   ];

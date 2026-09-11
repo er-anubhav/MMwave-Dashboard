@@ -484,6 +484,14 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
         return _shape_user(row) if row else None
 
 
+def update_user_password(user_id: int, password_hash: str) -> bool:
+    with engine.begin() as conn:
+        result = conn.execute(
+            users.update().where(users.c.id == user_id).values(password_hash=password_hash)
+        )
+        return result.rowcount > 0
+
+
 def get_tenant_for_user(user_id: int) -> Optional[Dict[str, Any]]:
     with engine.connect() as conn:
         tenant_id = _get_user_tenant_id(conn, user_id)

@@ -1,12 +1,17 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Activity, AlertCircle, Eye, EyeOff, HeartPulse, ShieldCheck } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,153 +20,113 @@ export default function Login() {
     email: "",
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("blarex_remembered_email");
+      if (savedEmail) {
+        setFormData((prev) => ({ ...prev, email: savedEmail }));
+        setRememberMe(true);
+      }
+    } catch {
+      // Ignore localStorage restrictions
+    }
+  }, []);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!formData.email || !formData.password) {
+      setError("Please fill in both fields.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     const result = await login(formData.email, formData.password);
     if (result.success) {
+      try {
+        if (rememberMe) {
+          localStorage.setItem("blarex_remembered_email", formData.email);
+        } else {
+          localStorage.removeItem("blarex_remembered_email");
+        }
+      } catch {
+        // Ignore localStorage restrictions
+      }
       navigate("/");
     } else {
-      setError(result.error);
+      setError(result.error || "Invalid credentials.");
     }
 
     setLoading(false);
   };
 
   const handleChange = (event) => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [event.target.name]: event.target.value,
-    });
+    }));
   };
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex flex-col lg:grid lg:grid-cols-12 overflow-x-hidden">
-      {/* Left Column: Branding, Hero & Feature Highlights */}
-      <div className="lg:col-span-6 xl:col-span-7 flex flex-col justify-between p-6 sm:p-10 lg:p-16 border-b lg:border-b-0 lg:border-r border-border/70 bg-card/20">
-        {/* Brand Header Lockup */}
-        <div>
-          <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-lg shadow-sm"
-            >
-              B
-            </span>
-            <div>
-              <span className="block text-base font-bold leading-tight tracking-tight text-foreground">
-                BlareXSense
-              </span>
-              <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary mt-0.5">
-                SAAS PORTAL
-              </span>
-            </div>
-          </div>
+    <div className="flex h-screen h-[100dvh] items-center justify-center bg-background p-4 overflow-y-auto">
+      <div className="w-full max-w-sm my-auto">
+        {/* Brand Header */}
+        <div className="mb-4 text-center">
+          <span className="text-xl font-normal tracking-tight text-foreground">
+            BlareXSense Login
+          </span>
         </div>
 
-        {/* Hero Section */}
-        <div className="my-8 lg:my-auto max-w-xl">
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl leading-[1.15]">
-            Smart Presence &amp; Vital <span className="block">Insights.</span>
-          </h1>
-          <p className="mt-4 sm:mt-6 text-sm sm:text-base leading-relaxed text-muted-foreground">
-            Access real-time radar telemetry, vital sign anomalies, and automated fall detection metrics in one consolidated interface.
-          </p>
-
-          <div className="mt-8 pt-8 border-t border-border/80">
-            <ul className="space-y-5">
-              <li className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary border border-border/50 shadow-surface-sm">
-                  <Activity className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Real-Time Telemetry Logs</h2>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    Stream activity scores and switch states instantly.
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary border border-border/50 shadow-surface-sm">
-                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Fall Detection Alerting</h2>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    Secure automations to trigger alarms upon critical events.
-                  </p>
-                </div>
-              </li>
-
-              <li className="flex items-start gap-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary border border-border/50 shadow-surface-sm">
-                  <HeartPulse className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Sleep &amp; Breathing Analytics</h2>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    Passive monitoring for sleep quality and vital anomalies.
-                  </p>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Left Column Footer */}
-        <div className="hidden lg:block pt-6 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} BlareXSense. All rights reserved.
-        </div>
-      </div>
-
-      {/* Right Column: Centered Login Card */}
-      <div className="lg:col-span-6 xl:col-span-5 flex flex-1 items-center justify-center p-6 sm:p-10 lg:p-16">
-        <Card className="w-full max-w-[440px] border-border shadow-surface bg-card">
-          <CardHeader className="space-y-1.5 p-6 sm:p-8 pb-4 sm:pb-4">
-            <CardTitle id="login-heading" className="text-2xl font-bold tracking-tight text-foreground">
-              Welcome Back
+        {/* Shadcn Card */}
+        <Card className="border-border shadow-surface">
+          <CardHeader className="space-y-1 p-5 pb-3">
+            <CardTitle className="text-base font-normal text-foreground">
+              Sign in
             </CardTitle>
-            <CardDescription className="text-sm leading-6 text-muted-foreground">
-              Enter your credentials to manage your device matrix.
-            </CardDescription>
           </CardHeader>
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4 px-6 sm:px-8 pb-0">
+          <CardContent className="p-5 pt-0">
+            <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
               {error && (
-                <Alert variant="destructive" className="rounded-md">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {typeof error === "string" ? error : "An error occurred"}
-                  </AlertDescription>
+                <Alert variant="destructive" className="py-2 px-3 text-xs">
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
+              {/* Email */}
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                  Email Address
+                <Label
+                  htmlFor="email"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  Email
                 </Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="er.tripathianubhav@gmail.com"
+                  autoComplete="email"
+                  placeholder="name@example.com"
                   value={formData.email}
                   onChange={handleChange}
                   required
                   disabled={loading}
+                  className="h-10 text-sm font-normal"
                 />
               </div>
 
+              {/* Password */}
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                <Label
+                  htmlFor="password"
+                  className="text-xs font-normal text-muted-foreground"
+                >
                   Password
                 </Label>
                 <div className="relative">
@@ -169,45 +134,65 @@ export default function Login() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="••••••••"
                     value={formData.password}
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="pr-10 font-mono"
+                    className="h-10 pr-12 text-sm font-normal"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-normal text-muted-foreground hover:text-foreground transition-colors cursor-pointer select-none"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
               </div>
-            </CardContent>
 
-            <CardFooter className="flex flex-col space-y-4 p-6 sm:p-8 pt-6 sm:pt-6">
-              <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={loading}>
-                {loading ? "Signing in…" : "Sign In"}
+              {/* Remember Me */}
+              <div className="flex items-center space-x-2 pt-1">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
+                  disabled={loading}
+                />
+                <Label
+                  htmlFor="remember-me"
+                  className="text-xs text-muted-foreground font-normal cursor-pointer select-none"
+                >
+                  Remember me
+                </Label>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-10 mt-2 font-normal text-sm"
+              >
+                {loading ? "Signing in…" : "Sign in"}
               </Button>
+            </form>
 
-              <p className="text-center text-xs text-muted-foreground pt-1">
+            {/* Sign Up Link */}
+            <div className="mt-5 pt-4 border-t border-border/70 text-center">
+              <p className="text-xs text-muted-foreground font-normal">
                 Don&apos;t have an account?{" "}
-                <Link to="/register" className="font-medium text-primary hover:underline">
-                  Create one here
+                <Link
+                  to="/register"
+                  className="font-normal text-primary hover:underline underline-offset-4"
+                >
+                  Sign up
                 </Link>
               </p>
-            </CardFooter>
-          </form>
+            </div>
+          </CardContent>
         </Card>
-      </div>
-
-      {/* Mobile Footer */}
-      <div className="block lg:hidden p-6 text-center text-xs text-muted-foreground border-t border-border/50">
-        © {new Date().getFullYear()} BlareXSense. All rights reserved.
       </div>
     </div>
   );
 }
-

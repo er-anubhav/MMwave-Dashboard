@@ -83,6 +83,11 @@ class TokenResponse(BaseModel):
     user: dict
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: Optional[str] = None
+    new_password: str = Field(..., min_length=8)
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
@@ -698,6 +703,25 @@ async def refresh_token(token_data: RefreshTokenRequest):
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
     return public_user(current_user)
+
+
+@app.post("/api/auth/change-password")
+async def change_password(request: PasswordChangeRequest, current_user: dict = Depends(get_current_user)):
+    """Change or reset password for authenticated user"""
+    user = database.get_user_by_id(current_user["id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if request.current_password:
+        if not verify_password(request.current_password, user["password_hash"]):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    new_hash = hash_password(request.new_password)
+    success = database.update_user_password(current_user["id"], new_hash)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password")
+    
+    return {"success": True, "message": "Password updated successfully"}
 
 
 @app.get("/api/tenant")

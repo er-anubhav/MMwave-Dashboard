@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,9 +6,10 @@
 
 body {
     margin: 0;
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
 }
 
 code,
@@ -22,7 +23,7 @@ pre,
         /* BlareX Sense console palette — cool light-gray page, white surfaces,
            navy text, professional blue accent. Semantic colors each carry a
            soft tint variant for chips, icon containers and status backgrounds. */
-        --background: 214 45% 97%;          /* #F4F7FB page background */
+        --background: 0 0% 100%;            /* #FFFFFF consistent pure white page background */
         --foreground: 221 38% 15%;          /* #172033 primary text */
         --card: 0 0% 100%;                  /* #FFFFFF surfaces */
         --card-foreground: 221 38% 15%;
@@ -51,6 +52,38 @@ pre,
         --ring: 212 84% 35%;
         --plot: 210 60% 98%;
         --radius: 1rem;                     /* 16px card radius; md 14 / sm 12 */
+    }
+
+    .dark {
+        --background: 224 40% 8%;           /* #0c121e deep console navy */
+        --foreground: 210 40% 98%;          /* #f8fafc primary text */
+        --card: 224 35% 12%;                /* #131b2c elevated surface */
+        --card-foreground: 210 40% 98%;
+        --popover: 224 35% 12%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 212 90% 54%;             /* #258cfb vibrant console blue */
+        --primary-foreground: 0 0% 100%;
+        --primary-strong: 212 90% 64%;
+        --secondary: 224 30% 17%;           /* #1e293b dark slate surface */
+        --secondary-foreground: 212 90% 85%;
+        --muted: 224 28% 15%;               /* #182234 secondary surface */
+        --muted-foreground: 215 20% 65%;    /* #94a3b8 soft muted text */
+        --accent: 224 30% 19%;              /* hover tint */
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 72% 56%;           /* danger red */
+        --destructive-foreground: 0 0% 100%;
+        --destructive-soft: 0 50% 16%;
+        --success: 154 70% 42%;             /* emerald green */
+        --success-soft: 154 50% 14%;
+        --warning: 38 92% 50%;              /* amber warning */
+        --warning-soft: 38 60% 15%;
+        --teal: 212 90% 54%;
+        --teal-soft: 224 30% 17%;
+        --border: 224 25% 20%;              /* #243045 subtle border */
+        --input: 224 25% 24%;
+        --ring: 212 90% 54%;
+        --plot: 224 40% 6%;
+        --radius: 1rem;
     }
 }
 
@@ -99,4 +132,25 @@ pre,
 }
 .animate-pulse-dot {
     animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Clean browser autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #172033 !important;
+    caret-color: #172033 !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #131b2c inset !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    caret-color: #f8fafc !important;
+    transition: background-color 5000s ease-in-out 0s;
 }

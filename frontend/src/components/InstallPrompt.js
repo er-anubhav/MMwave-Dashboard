@@ -77,14 +77,14 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-      <div className="bg-white border border-border/90 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
+      <div className="bg-card text-card-foreground border border-border shadow-2xl rounded-2xl p-4 flex flex-col gap-3 backdrop-blur-md">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white shrink-0 shadow-sm">
+            <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary dark:bg-primary/20 flex items-center justify-center shrink-0 shadow-sm">
               <Smartphone className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-sm font-medium text-foreground">
+              <h4 className="text-sm font-semibold text-foreground">
                 Install BlareXSense App
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -94,7 +94,7 @@ export default function InstallPrompt() {
           </div>
           <button
             onClick={handleDismiss}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -102,7 +102,7 @@ export default function InstallPrompt() {
         </div>
 
         {isIOS ? (
-          <div className="bg-secondary/40 border border-border/60 rounded-xl p-2.5 text-xs text-foreground flex items-center gap-2">
+          <div className="bg-muted/60 border border-border/80 rounded-xl p-2.5 text-xs text-foreground flex items-center gap-2">
             <Share2 className="h-4 w-4 text-primary shrink-0" />
             <span>
               Tap <strong className="font-semibold">Share</strong> in Safari, then select{" "}
@@ -115,14 +115,14 @@ export default function InstallPrompt() {
               variant="ghost"
               size="sm"
               onClick={handleDismiss}
-              className="text-xs font-normal text-muted-foreground h-8 px-3"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 h-8 px-3"
             >
               Maybe later
             </Button>
             <Button
               size="sm"
               onClick={handleInstallClick}
-              className="text-xs font-normal bg-primary text-white hover:bg-primary/90 h-8 px-3.5 gap-1.5 shadow-sm"
+              className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3.5 gap-1.5 shadow-sm"
             >
               <Download className="h-3.5 w-3.5" />
               Install Now

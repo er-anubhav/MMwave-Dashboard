@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/firmware_backend_frontend_sync.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Complete Firmware, Backend, and Frontend Synchronization Specification",
+  "summary": "Full synchronization breakdown mapping firmware operations (radar, relay, calibration, absence timer, touch) to backend state and React dashboard UI.",
+  "scope": ["Synchronization", "Firmware", "Backend", "Frontend", "State Machine", "Polling", "Relay Control"],
+  "cross_refs": ["Firmware/hmmd_mmwave.ino", "backend/main.py", "frontend/src/pages/Dashboard.js"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Covers end-to-end sync flows with sequence and flowchart diagrams."
+}

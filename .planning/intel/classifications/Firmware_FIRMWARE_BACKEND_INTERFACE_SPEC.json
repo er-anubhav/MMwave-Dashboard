@@ -1,0 +1,13 @@
+{
+  "source_path": "Firmware/FIRMWARE_BACKEND_INTERFACE_SPEC.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Hardware-to-Backend Interface Control Document (ICD)",
+  "summary": "Protocol specification for ESP32 edge firmware communicating with FastAPI backend via single HTTP roundtrip telemetry upload and command sync.",
+  "scope": ["Firmware", "ESP32", "Backend", "HTTP/1.1", "Telemetry", "X-Device-Key", "Commands"],
+  "cross_refs": ["Firmware/hmmd_mmwave.ino", "backend/main.py"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Specifies JSON telemetry payload and HTTP 200 command response shape."
+}

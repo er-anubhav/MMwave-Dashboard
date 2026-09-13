@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "LYFSense Dashboard Overview & Setup",
+  "summary": "High-level overview of the LYFSense smart switch and sensor system, including setup instructions, feature list, and contract summaries.",
+  "scope": ["System Overview", "Setup", "Features", "FastAPI", "React", "PostgreSQL", "ESP32"],
+  "cross_refs": ["backend/main.py", "frontend/src/App.js", "Firmware/hmmd_mmwave.ino"],
+  "locked": false,
+  "precedence": null,
+  "notes": "General project readme and setup reference."
+}

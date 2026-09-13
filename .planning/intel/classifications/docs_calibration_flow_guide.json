@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/calibration_flow_guide.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Calibration Flow Specification & Execution Guide",
+  "summary": "Technical guide explaining the 16-gate background noise floor calibration process across React dashboard, FastAPI, and ESP32 radar hardware.",
+  "scope": ["Calibration", "Radar Baseline", "Noise Floor", "ESP32", "Waveshare 24GHz", "Energy Gates"],
+  "cross_refs": ["Firmware/hmmd_mmwave.ino", "backend/main.py", "frontend/src/hooks/useDeviceData.js"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Explains the physical noise floor subtraction math and UI countdown sequence."
+}

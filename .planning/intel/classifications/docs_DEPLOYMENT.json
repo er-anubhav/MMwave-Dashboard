@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/DEPLOYMENT.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "SaaS Deployment: Vercel Frontend + VPS Backend",
+  "summary": "Production deployment architecture guide for deploying React frontend to Vercel, FastAPI backend to Ubuntu VPS with Nginx and systemd, and PostgreSQL database.",
+  "scope": ["Deployment", "SaaS", "Vercel", "VPS", "Nginx", "Systemd", "PostgreSQL", "Certbot", "Backups"],
+  "cross_refs": ["backend/main.py", "backend/config.py", "frontend/package.json"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Covers system packages, database setup, environment configuration, and SSL certificates."
+}

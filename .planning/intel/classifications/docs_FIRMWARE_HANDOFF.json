@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/FIRMWARE_HANDOFF.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Firmware Integration Handoff",
+  "summary": "Firmware-facing contract for integrating ESP32 LYFSense devices with the backend, covering base URLs, auth headers, and health checks.",
+  "scope": ["Firmware", "ESP32", "API contract", "X-Device-Key", "Health"],
+  "cross_refs": ["Firmware/hmmd_mmwave.ino", "backend/main.py"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Handoff instructions and endpoint contracts for firmware developers."
+}

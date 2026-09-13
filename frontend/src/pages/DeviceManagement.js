@@ -35,8 +35,8 @@ import {
   QrCode,
   KeyRound,
   ScanLine,
-  RefreshCw,
-  ChevronDown
+  ChevronDown,
+  WifiOff
 } from 'lucide-react';
 import api from '../api/api';
 import { toast } from 'sonner';
@@ -108,7 +108,9 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
           <img
             src={deviceImg}
             alt={device.name}
-            className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl object-cover border border-border/60 bg-secondary/30 shrink-0 transition-transform group-hover:scale-105"
+            className={`w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl object-cover border border-border/60 bg-secondary/30 shrink-0 transition-transform group-hover:scale-105 ${
+              !isOnline ? 'opacity-75 grayscale-[20%]' : ''
+            }`}
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = '/blarex-device.png';
@@ -139,33 +141,43 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
         </button>
       </div>
 
-      {/* Presence Status Banner */}
+      {/* Presence & Connectivity Status Pill (Consumer-Grade) */}
       <div
-        className={`my-3 px-3.5 py-2.5 rounded-xl border flex items-center justify-between transition-all ${
+        className={`my-3 px-3.5 py-2 rounded-xl flex items-center justify-between text-xs transition-all ${
           !isOnline
-            ? 'bg-secondary/20 border-border/40 text-muted-foreground'
+            ? 'bg-secondary/30 text-muted-foreground/80'
             : isOccupied
-            ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400'
-            : 'bg-secondary/30 border-border/40 text-muted-foreground'
+            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium'
+            : 'bg-secondary/40 text-muted-foreground'
         }`}
       >
-        <div className="min-w-0 pr-2">
-          <div className={`text-xs sm:text-sm font-normal leading-tight ${isOccupied && isOnline ? 'text-emerald-800 dark:text-emerald-300' : 'text-foreground'}`}>
-            {!isOnline ? 'Offline' : isOccupied ? 'Person present' : 'No presence'}
-          </div>
-          <div className={`text-[11px] sm:text-xs mt-0.5 leading-snug ${isOccupied && isOnline ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-muted-foreground'}`}>
-            {!isOnline ? 'Last state unavailable' : isOccupied ? 'Live presence detected' : 'Space is clear'}
-          </div>
-        </div>
-        <span
-          className={`w-2 h-2 rounded-full shrink-0 ${
-            !isOnline
-              ? 'bg-muted-foreground/30'
+        <div className="flex items-center gap-2 min-w-0">
+          {!isOnline ? (
+            <WifiOff size={13} className="shrink-0 text-muted-foreground/60" />
+          ) : isOccupied ? (
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
+          )}
+          <span className="font-normal truncate">
+            {!isOnline
+              ? 'Device Offline'
               : isOccupied
-              ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-500/30'
-              : 'bg-muted-foreground/40'
-          }`}
-        />
+              ? 'Motion Detected'
+              : 'Space Clear'}
+          </span>
+        </div>
+
+        <span className="text-[11px] font-normal opacity-70 shrink-0 ml-2">
+          {!isOnline
+            ? 'Disconnected'
+            : isOccupied
+            ? (data?.sensor_data?.distance ? `${Math.round(data.sensor_data.distance)} cm` : 'Live')
+            : 'Idle'}
+        </span>
       </div>
 
       {/* Card Footer: Operating Mode Badge + Clean Switch Toggle */}

@@ -493,6 +493,68 @@ export default function DeviceManagement() {
         </div>
       </div>
 
+      {/* 2. Mobile Quick Access Bar (Shorter Cards at Top for Immediate Control) */}
+      <div className="sm:hidden pt-0.5">
+        <div className="grid grid-cols-3 gap-2">
+          {/* Sub Card 1: Turn all OFF */}
+          <button
+            type="button"
+            onClick={handleAllOff}
+            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center">
+              <Power className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-normal text-foreground truncate">
+                Turn all OFF
+              </span>
+              <span className="block text-[10px] font-normal text-muted-foreground truncate">
+                All Relays
+              </span>
+            </div>
+          </button>
+
+          {/* Sub Card 2: All Auto Mode */}
+          <button
+            type="button"
+            onClick={handleAllAuto}
+            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-normal text-foreground truncate">
+                All Auto Mode
+              </span>
+              <span className="block text-[10px] font-normal text-muted-foreground truncate">
+                Radar
+              </span>
+            </div>
+          </button>
+
+          {/* Sub Card 3: Night Routine */}
+          <button
+            type="button"
+            onClick={handleNightRoutine}
+            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+          >
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center">
+              <Moon className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-xs font-normal text-foreground truncate">
+                Night Routine
+              </span>
+              <span className="block text-[10px] font-normal text-muted-foreground truncate">
+                Sleep
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* 3. Devices Section Title */}
       <div className="flex items-center justify-between pt-1">
         <h2 className="text-lg sm:text-xl font-normal tracking-tight text-foreground flex items-center gap-2.5">
@@ -634,7 +696,7 @@ export default function DeviceManagement() {
           <button
             type="button"
             onClick={handleAllOff}
-            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Power className="w-6 h-6" />
@@ -653,7 +715,7 @@ export default function DeviceManagement() {
           <button
             type="button"
             onClick={handleAllAuto}
-            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Sparkles className="w-6 h-6" />
@@ -672,7 +734,7 @@ export default function DeviceManagement() {
           <button
             type="button"
             onClick={handleNightRoutine}
-            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Moon className="w-6 h-6" />

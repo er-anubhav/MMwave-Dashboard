@@ -29,7 +29,8 @@ import {
   AlertTriangle,
   ChevronRight,
   ExternalLink,
-  Bot
+  Bot,
+  MapPin
 } from 'lucide-react';
 import api from '../api/api';
 import { toast } from 'sonner';
@@ -187,18 +188,33 @@ export default function DeviceManagement() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
+  const [localSpace, setLocalSpace] = useState('All Spaces');
+  const activeSpace = context.selectedSpace || localSpace;
+
   const ROOM_SUGGESTIONS = ['Living Room', 'Master Bedroom', 'Kids Room', 'Kitchen', 'Office'];
+
+  const availableRooms = useMemo(() => {
+    const rooms = new Set(['All Spaces', 'Living Room', 'Master Bedroom', 'Kitchen', 'Office']);
+    devices.forEach((d) => {
+      if (d.room) rooms.add(d.room);
+      if (d.name) {
+        const match = d.name.match(/(Living Room|Bedroom|Kitchen|Office|Hall|Master)/i);
+        if (match) rooms.add(match[0]);
+      }
+    });
+    return Array.from(rooms);
+  }, [devices]);
 
   // Filter devices by selected space if specified
   const filteredDevices = useMemo(() => {
-    if (!selectedSpace || selectedSpace === 'All Spaces' || selectedSpace === 'Home' || selectedSpace === 'Office') {
+    if (!activeSpace || activeSpace === 'All Spaces' || activeSpace === 'Home' || activeSpace === 'Office') {
       return devices;
     }
     return devices.filter((d) => {
       const roomStr = (d.room || d.name || '').toLowerCase();
-      return roomStr.includes(selectedSpace.toLowerCase());
+      return roomStr.includes(activeSpace.toLowerCase());
     });
-  }, [devices, selectedSpace]);
+  }, [devices, activeSpace]);
 
   // Status strip aggregates
   const onlineCount = useMemo(() => devices.filter((d) => d.status === 'online').length, [devices]);
@@ -281,7 +297,24 @@ export default function DeviceManagement() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Space / Room Filter */}
+          <div className="flex items-center gap-1.5 bg-secondary/50 border border-border/80 rounded-xl px-2.5 py-1 text-xs font-medium text-foreground">
+            <MapPin size={13} className="text-primary shrink-0" />
+            <select
+              value={localSpace}
+              onChange={(e) => setLocalSpace(e.target.value)}
+              className="bg-transparent border-0 font-medium text-foreground text-xs focus:outline-none cursor-pointer pr-1"
+              aria-label="Filter by space"
+            >
+              {availableRooms.map((room) => (
+                <option key={room} value={room} className="bg-card text-foreground">
+                  {room}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* View Toggle (Grid / Table) */}
           <div className="flex items-center bg-secondary/60 border border-border/80 rounded-xl p-0.5">
             <Button

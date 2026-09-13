@@ -624,40 +624,40 @@ export default function DeviceManagement() {
           </Card>
 
           {/* Right Column: Latest Alerts Feed */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-normal text-foreground flex items-center gap-2">
+          <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between pb-1">
+              <h2 className="text-sm sm:text-base font-normal text-foreground flex items-center gap-2">
                 <span>Latest Alerts</span>
               </h2>
-              <Link to="/notifications" className="text-xs sm:text-sm font-normal text-primary hover:underline">
+              <Link to="/notifications" className="text-xs font-normal text-primary hover:underline">
                 History
               </Link>
             </div>
 
-            <div className="space-y-3 flex-1">
-              <div className="p-3.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-3 text-xs sm:text-sm">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 size={17} />
+            <div className="space-y-2 flex-1">
+              <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 size={14} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-foreground block text-sm sm:text-base font-normal">
+                  <span className="text-foreground block text-xs sm:text-sm font-normal">
                     Radar Hub Synchronized
                   </span>
-                  <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-relaxed">
+                  <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
                     Multi-tenant telemetry ingestion active across {onlineCount} online units.
                   </p>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-3 text-xs sm:text-sm">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <AlertTriangle size={17} />
+              <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs">
+                <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertTriangle size={14} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-foreground block text-sm sm:text-base font-normal">
+                  <span className="text-foreground block text-xs sm:text-sm font-normal">
                     Absence Guard Ready
                   </span>
-                  <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-relaxed">
+                  <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
                     Automations scheduler will auto-off loads after confirmed vacancy.
                   </p>
                 </div>
@@ -668,7 +668,7 @@ export default function DeviceManagement() {
               variant="outline"
               size="sm"
               onClick={() => navigate('/notifications')}
-              className="w-full text-xs sm:text-sm font-normal border-border/70 hover:bg-secondary/40 h-9 sm:h-10 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full text-xs font-normal border-border/70 hover:bg-secondary/40 h-8 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
             >
               View Full Security & Sensor Logs
             </Button>
@@ -760,10 +760,6 @@ export default function DeviceManagement() {
                     </div>
                   </button>
                 </div>
-
-                <div className="p-3 rounded-xl bg-secondary/30 border border-border/50 text-xs font-normal text-muted-foreground leading-relaxed">
-                  Pairing securely links the mmWave radar hardware to your account. Live telemetry and relay automation will activate immediately upon verification.
-                </div>
               </div>
             )}
 
@@ -792,7 +788,7 @@ export default function DeviceManagement() {
                         value={linkForm.deviceId}
                         onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
                         placeholder="e.g. BX-SENSE-A7F2 or STD-001"
-                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-9 sm:h-10 rounded-xl font-mono uppercase"
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-9 sm:h-10 rounded-xl  uppercase"
                       />
                     </div>
                   </div>
@@ -808,7 +804,7 @@ export default function DeviceManagement() {
                         value={linkForm.deviceId}
                         onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
                         required
-                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl font-mono uppercase"
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl  uppercase"
                         autoFocus
                       />
                       <p className="text-xs font-normal text-muted-foreground">
@@ -826,7 +822,7 @@ export default function DeviceManagement() {
                         maxLength={6}
                         value={setupCode}
                         onChange={(e) => setSetupCode(e.target.value)}
-                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl font-mono"
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl "
                       />
                       <p className="text-xs font-normal text-muted-foreground">
                         Found inside the quick start packaging card.

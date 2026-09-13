@@ -608,80 +608,69 @@ export default function DeviceManagement() {
         </Card>
       )}
 
-      {/* 5. Quick Actions Section Split: 1.85fr : 0.95fr */}
+      {/* 5. Quick Actions Sub-Cards & Latest Alert */}
       <div className="pt-2">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.85fr_0.95fr] gap-4 sm:gap-6">
-          {/* Left Column: Quick Actions Card (Enlarged) */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-6 sm:p-7 shadow-xs space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg sm:text-xl font-normal text-foreground tracking-tight">Quick Actions</h2>
-              </div>
-              <span className="text-xs font-normal px-3 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40">
-                Global Controls
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {/* Sub Card 1: Turn all OFF */}
+          <button
+            type="button"
+            onClick={handleAllOff}
+            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+          >
+            <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+              <Power className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-destructive transition-colors">
+                Turn all OFF
+              </span>
+              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                Switch off all online relays instantly
               </span>
             </div>
+          </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-5">
-              <button
-                type="button"
-                onClick={handleAllOff}
-                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-destructive/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
-              >
-                <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-                  <Power className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-destructive transition-colors">
-                    Turn all OFF
-                  </span>
-                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                    Switch off all online relays instantly
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAllAuto}
-                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-primary transition-colors">
-                    All Auto Mode
-                  </span>
-                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                    Enforce radar presence automation
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNightRoutine}
-                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-indigo-500/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
-              >
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-                  <Moon className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-indigo-500 transition-colors">
-                    Night Routine
-                  </span>
-                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                    Engage quiet sleep surveillance
-                  </span>
-                </div>
-              </button>
+          {/* Sub Card 2: All Auto Mode */}
+          <button
+            type="button"
+            onClick={handleAllAuto}
+            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+          >
+            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+              <Sparkles className="w-6 h-6" />
             </div>
-          </Card>
+            <div>
+              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-primary transition-colors">
+                All Auto Mode
+              </span>
+              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                Enforce radar presence automation
+              </span>
+            </div>
+          </button>
 
-          {/* Right Column: Latest Alert Feed */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between pb-1 border-b border-border/30">
+          {/* Sub Card 3: Night Routine */}
+          <button
+            type="button"
+            onClick={handleNightRoutine}
+            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+          >
+            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+              <Moon className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-indigo-500 transition-colors">
+                Night Routine
+              </span>
+              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                Engage quiet sleep surveillance
+              </span>
+            </div>
+          </button>
+
+          {/* Sub Card 4: Latest Alert Feed */}
+          <Card className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between min-h-[160px] sm:min-h-[175px]">
+            <div className="flex items-center justify-between pb-2 border-b border-border/30">
               <h2 className="text-base font-normal text-foreground">
                 Latest alert
               </h2>
@@ -690,9 +679,9 @@ export default function DeviceManagement() {
               </Link>
             </div>
 
-            <div className="flex-1 flex flex-col justify-center">
+            <div className="flex-1 flex flex-col justify-center my-auto">
               {displayAlerts.length === 0 ? (
-                <div className="py-4 text-center">
+                <div className="py-2 text-center">
                   <p className="text-xs font-normal text-muted-foreground">
                     No active alerts • All monitored spaces are clear
                   </p>
@@ -700,9 +689,9 @@ export default function DeviceManagement() {
               ) : (
                 <div className="divide-y divide-border/40">
                   {displayAlerts.slice(0, 2).map((item) => (
-                    <div key={item.id} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-3.5">
+                    <div key={item.id} className="py-2 first:pt-0 last:pb-0 flex items-start gap-3">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold mt-0.5 select-none ${
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold mt-0.5 select-none ${
                           item.isAlert
                             ? 'bg-red-500/10 text-red-500'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -711,10 +700,10 @@ export default function DeviceManagement() {
                         {item.isAlert ? '!' : '◉'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm sm:text-base font-normal text-foreground leading-tight">
+                        <div className="text-sm font-normal text-foreground leading-tight">
                           {item.device}
                         </div>
-                        <div className="text-xs font-normal text-muted-foreground mt-1 leading-snug">
+                        <div className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
                           {item.text}
                         </div>
                         <div className="text-xs font-normal text-muted-foreground/70 mt-0.5">

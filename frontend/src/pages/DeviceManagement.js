@@ -91,18 +91,24 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
     }
   };
 
+  const isNameSameAsRoom =
+    (device.name || '').trim().toLowerCase() === (device.room || '').trim().toLowerCase();
+  const subtitleText = isNameSameAsRoom
+    ? (device.device_type?.includes('sensor') ? 'Radar Node' : 'Radar Switch')
+    : (device.room || 'Living Room');
+
   return (
     <Card
       onClick={() => onInspect(device)}
-      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl sm:rounded-[22px] p-4.5 sm:p-5 flex flex-col justify-between min-h-[190px] select-none"
+      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] select-none"
     >
       {/* Top Row: Device Thumbnail, Title, Room, and Kebab Button */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3.5 min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <img
             src={deviceImg}
             alt={device.name}
-            className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover border border-border/70 bg-secondary/30 shrink-0 transition-transform group-hover:scale-105"
+            className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl object-cover border border-border/60 bg-secondary/30 shrink-0 transition-transform group-hover:scale-105"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = '/blarex-device.png';
@@ -113,7 +119,7 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
               {device.name}
             </h3>
             <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5 truncate">
-              {device.room || 'Living Room'}
+              {subtitleText}
             </p>
           </div>
         </div>
@@ -125,38 +131,38 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
             e.stopPropagation();
             onInspect(device);
           }}
-          className="w-9 h-9 rounded-xl bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shrink-0"
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shrink-0"
           title="Device options & settings"
           aria-label="Device options"
         >
-          <MoreHorizontal size={18} />
+          <MoreHorizontal size={17} />
         </button>
       </div>
 
       {/* Presence Status Banner */}
       <div
-        className={`my-3.5 px-4 py-3 rounded-2xl border flex items-center justify-between transition-all ${
+        className={`my-3 px-3.5 py-2.5 rounded-xl border flex items-center justify-between transition-all ${
           !isOnline
             ? 'bg-secondary/20 border-border/40 text-muted-foreground'
             : isOccupied
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-            : 'bg-secondary/30 border-border/50 text-muted-foreground'
+            ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-400'
+            : 'bg-secondary/30 border-border/40 text-muted-foreground'
         }`}
       >
         <div className="min-w-0 pr-2">
-          <div className={`text-sm font-normal leading-tight ${isOccupied && isOnline ? 'text-emerald-800 dark:text-emerald-300' : 'text-foreground'}`}>
+          <div className={`text-xs sm:text-sm font-normal leading-tight ${isOccupied && isOnline ? 'text-emerald-800 dark:text-emerald-300' : 'text-foreground'}`}>
             {!isOnline ? 'Offline' : isOccupied ? 'Person present' : 'No presence'}
           </div>
-          <div className={`text-xs mt-1 leading-none ${isOccupied && isOnline ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-muted-foreground'}`}>
+          <div className={`text-[11px] sm:text-xs mt-0.5 leading-snug ${isOccupied && isOnline ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-muted-foreground'}`}>
             {!isOnline ? 'Last state unavailable' : isOccupied ? 'Live presence detected' : 'Space is clear'}
           </div>
         </div>
         <span
-          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+          className={`w-2 h-2 rounded-full shrink-0 ${
             !isOnline
               ? 'bg-muted-foreground/30'
               : isOccupied
-              ? 'bg-emerald-500 animate-pulse'
+              ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-500/30'
               : 'bg-muted-foreground/40'
           }`}
         />
@@ -164,19 +170,27 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
 
       {/* Card Footer: Operating Mode Badge + Clean Switch Toggle */}
       <div
-        className="flex items-center justify-between pt-1 text-xs sm:text-sm"
+        className="flex items-center justify-between pt-0.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-xs font-normal capitalize px-3 py-1.5 rounded-xl bg-secondary/60 text-secondary-foreground border border-border/50 select-none">
+        <span className="text-[11px] sm:text-xs font-normal capitalize px-2.5 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40 select-none flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
           {mode} mode
         </span>
 
-        <Switch
-          checked={relayState}
-          disabled={togglingRelay || !isOnline}
-          onCheckedChange={toggleRelay}
-          className="data-[state=checked]:bg-primary"
-        />
+        <div className="flex items-center gap-2">
+          {isOnline && (
+            <span className="text-[11px] text-muted-foreground/70 hidden xs:inline">
+              {relayState ? 'On' : 'Off'}
+            </span>
+          )}
+          <Switch
+            checked={relayState}
+            disabled={togglingRelay || !isOnline}
+            onCheckedChange={toggleRelay}
+            className="data-[state=checked]:bg-primary scale-90 sm:scale-100"
+          />
+        </div>
       </div>
     </Card>
   );

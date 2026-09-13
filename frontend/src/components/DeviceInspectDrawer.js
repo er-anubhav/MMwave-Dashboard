@@ -166,18 +166,18 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
       >
         {/* Drawer Header */}
         <SheetHeader className="p-5 border-b border-border/70 flex flex-row items-center justify-between text-left space-y-0">
-          <div className="flex items-center gap-3 min-w-0 pr-6">
-            <div className="w-12 h-12 rounded-2xl bg-secondary/80 border border-border/80 flex items-center justify-center text-primary shrink-0">
-              <Radio size={24} />
+          <div className="flex items-center gap-3.5 min-w-0 pr-6">
+            <div className="w-11 h-11 rounded-2xl bg-secondary/60 border border-border/60 flex items-center justify-center text-primary shrink-0">
+              <Radio size={22} />
             </div>
             <div className="min-w-0">
-              <SheetTitle className="text-base font-semibold text-foreground truncate">
+              <SheetTitle className="text-base sm:text-lg font-normal text-foreground truncate">
                 {device.name}
               </SheetTitle>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-0.5">
                 <span>{device.room || 'Living Room'}</span>
                 <span>•</span>
-                <span className={isOnline ? 'text-emerald-500 font-medium' : 'text-muted-foreground'}>
+                <span className={isOnline ? 'text-emerald-500' : 'text-muted-foreground'}>
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
               </div>
@@ -188,14 +188,14 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
         {/* Tab Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <div className="px-5 pt-3 border-b border-border/70 bg-secondary/20">
-            <TabsList className="grid grid-cols-3 bg-secondary/60 h-9 p-1 rounded-xl">
-              <TabsTrigger value="control" className="text-xs font-semibold rounded-lg">
+            <TabsList className="grid grid-cols-3 bg-secondary/60 h-10 p-1 rounded-xl">
+              <TabsTrigger value="control" className="text-xs sm:text-sm font-normal rounded-lg">
                 Control
               </TabsTrigger>
-              <TabsTrigger value="presence" className="text-xs font-semibold rounded-lg">
+              <TabsTrigger value="presence" className="text-xs sm:text-sm font-normal rounded-lg">
                 Sensing
               </TabsTrigger>
-              <TabsTrigger value="settings" className="text-xs font-semibold rounded-lg">
+              <TabsTrigger value="settings" className="text-xs sm:text-sm font-normal rounded-lg">
                 Settings
               </TabsTrigger>
             </TabsList>
@@ -207,39 +207,39 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
             <TabsContent value="control" className="space-y-4 m-0">
               {/* Live Presence Hero Banner */}
               <div
-                className={`p-4 rounded-2xl border transition-all ${
+                className={`p-4.5 rounded-2xl border transition-all ${
                   isOccupied
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                    : 'bg-secondary/40 border-border/80 text-foreground'
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-secondary/30 border-border/70 text-foreground'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <small className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+                  <span className="text-xs font-normal tracking-wider uppercase text-muted-foreground">
                     Live Presence Radar
-                  </small>
+                  </span>
                   <span
                     className={`w-2.5 h-2.5 rounded-full ${
                       isOccupied ? 'bg-emerald-500 animate-ping' : 'bg-muted-foreground/50'
                     }`}
                   />
                 </div>
-                <h2 className="text-2xl font-bold mt-1 text-foreground">
+                <h2 className="text-xl sm:text-2xl font-normal tracking-tight mt-1 text-foreground">
                   {isOccupied ? 'Occupied (Target Detected)' : 'No Occupancy (Away)'}
                 </h2>
-                <div className="grid grid-cols-3 gap-2 mt-3 text-xs pt-3 border-t border-border/40 text-muted-foreground">
+                <div className="grid grid-cols-3 gap-2 mt-3 text-xs sm:text-sm pt-3 border-t border-border/40 text-muted-foreground">
                   <div>
-                    <span className="block text-[10px] uppercase">Activity</span>
-                    <b className="text-foreground text-sm">{liveData?.sensor_data?.activity ?? 0}</b>
+                    <span className="block text-xs font-normal text-muted-foreground">Activity</span>
+                    <span className="text-foreground text-sm sm:text-base font-normal">{liveData?.sensor_data?.activity ?? 0}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] uppercase">Distance</span>
-                    <b className="text-foreground text-sm">
+                    <span className="block text-xs font-normal text-muted-foreground">Distance</span>
+                    <span className="text-foreground text-sm sm:text-base font-normal">
                       {liveData?.sensor_data?.distance ? `${liveData.sensor_data.distance} cm` : '—'}
-                    </b>
+                    </span>
                   </div>
                   <div>
-                    <span className="block text-[10px] uppercase">Energy</span>
-                    <b className="text-foreground text-sm">{liveData?.sensor_data?.energy ?? 0}</b>
+                    <span className="block text-xs font-normal text-muted-foreground">Energy</span>
+                    <span className="text-foreground text-sm sm:text-base font-normal">{liveData?.sensor_data?.energy ?? 0}</span>
                   </div>
                 </div>
               </div>
@@ -247,8 +247,8 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
               {/* Connected Load Switch */}
               <div className="flex items-center justify-between p-4 rounded-xl border border-border/80 bg-card">
                 <div>
-                  <b className="text-sm font-semibold text-foreground">Connected Appliance</b>
-                  <span className="block text-xs text-muted-foreground mt-0.5">
+                  <span className="text-sm sm:text-base font-normal text-foreground block">Connected Appliance</span>
+                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-0.5">
                     Relay is currently {relayState ? 'ON' : 'OFF'}
                   </span>
                 </div>
@@ -262,16 +262,16 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
 
               {/* Operating Mode Segmented Buttons */}
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <label className="text-xs sm:text-sm font-normal uppercase tracking-wider text-muted-foreground">
                   Operating Mode
                 </label>
-                <div className="grid grid-cols-4 gap-1.5 p-1 bg-secondary/60 rounded-xl border border-border/70 text-xs">
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-secondary/60 rounded-xl border border-border/70 text-xs sm:text-sm">
                   {['auto', 'manual', 'fall', 'sleep'].map((modeKey) => (
                     <button
                       key={modeKey}
                       type="button"
                       onClick={() => handleModeChange(modeKey)}
-                      className={`py-2 rounded-lg font-semibold capitalize transition-all ${
+                      className={`py-2 rounded-lg font-normal capitalize transition-all ${
                         currentMode === modeKey
                           ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
@@ -281,7 +281,7 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-xs sm:text-sm font-normal text-muted-foreground leading-relaxed">
                   {currentMode === 'auto' && 'Auto: Radar presence turns appliance ON; absence turns it OFF.'}
                   {currentMode === 'manual' && 'Manual: Appliance state is governed exclusively by user toggles.'}
                   {currentMode === 'fall' && 'Fall Detection: High-sensitivity tracking calibrated for safety.'}
@@ -294,15 +294,15 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles size={16} className="text-amber-400" />
-                    <b className="text-sm font-semibold text-foreground">Noise Floor Calibration</b>
+                    <span className="text-sm sm:text-base font-normal text-foreground">Noise Floor Calibration</span>
                   </div>
                   {calibrating && (
-                    <span className="text-xs font-mono font-bold text-amber-400 animate-pulse">
+                    <span className="text-xs sm:text-sm font-mono font-normal text-amber-400 animate-pulse">
                       {calibrationSeconds}s left
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs sm:text-sm font-normal text-muted-foreground">
                   Samples 16 radar gates to subtract background stationary interference in the room.
                 </p>
                 <Button
@@ -310,9 +310,9 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                   size="sm"
                   disabled={calibrating}
                   onClick={handleNoiseCalibration}
-                  className="w-full text-xs font-medium border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
+                  className="w-full text-xs sm:text-sm font-normal border-amber-500/30 hover:bg-amber-500/10 text-amber-400 h-10"
                 >
-                  <Sparkles size={14} className="mr-1.5" />
+                  <Sparkles size={15} className="mr-1.5" />
                   {calibrating ? `Calibrating... (${calibrationSeconds}s)` : 'Run 10s Room Calibration'}
                 </Button>
               </div>
@@ -325,10 +325,10 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                   onOpenChange(false);
                   navigate(`/devices/${device.device_id}`);
                 }}
-                className="w-full text-xs font-semibold h-9 rounded-xl border-border/80 hover:bg-secondary/60 flex items-center justify-center gap-2"
+                className="w-full text-xs sm:text-sm font-normal h-10 rounded-xl border-border/80 hover:bg-secondary/60 flex items-center justify-center gap-2"
               >
                 <span>Open 3D Spatial Radar & Deep Telemetry</span>
-                <ExternalLink size={14} />
+                <ExternalLink size={15} />
               </Button>
             </TabsContent>
 
@@ -337,8 +337,8 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
               <div className="p-4 rounded-xl border border-border/80 bg-card space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <Label className="text-xs font-semibold text-foreground">Detection Range Boundary</Label>
-                    <span className="text-xs font-mono text-primary font-bold">{detectionRange[0]} meters</span>
+                    <Label className="text-xs sm:text-sm font-normal text-foreground">Detection Range Boundary</Label>
+                    <span className="text-xs sm:text-sm font-mono text-primary font-normal">{detectionRange[0]} meters</span>
                   </div>
                   <Slider
                     min={1}
@@ -348,15 +348,15 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                     onValueChange={setDetectionRange}
                     className="py-2"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1">
                     Ignores motion and reflections beyond this physical distance.
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/60">
                   <div className="flex justify-between items-center mb-1">
-                    <Label className="text-xs font-semibold text-foreground">Radar Gate Sensitivity</Label>
-                    <span className="text-xs font-mono text-primary font-bold">{sensitivity[0]} / 10</span>
+                    <Label className="text-xs sm:text-sm font-normal text-foreground">Radar Gate Sensitivity</Label>
+                    <span className="text-xs sm:text-sm font-mono text-primary font-normal">{sensitivity[0]} / 10</span>
                   </div>
                   <Slider
                     min={1}
@@ -366,17 +366,17 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                     onValueChange={setSensitivity}
                     className="py-2"
                   />
-                  <p className="text-[11px] text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1">
                     Higher values capture micro-breathing; lower values reject subtle fans/drapes.
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/60 space-y-1.5">
-                  <Label className="text-xs font-semibold text-foreground">Absence Auto-OFF Delay</Label>
+                  <Label className="text-xs sm:text-sm font-normal text-foreground">Absence Auto-OFF Delay</Label>
                   <select
                     value={absenceDelay}
                     onChange={(e) => setAbsenceDelay(e.target.value)}
-                    className="w-full bg-secondary/50 border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none"
+                    className="w-full bg-secondary/50 border border-border/80 rounded-xl px-3 py-2 text-xs sm:text-sm font-normal text-foreground focus:outline-none"
                   >
                     <option value="30">30 seconds (Quick Eco)</option>
                     <option value="60">1 minute (Standard)</option>
@@ -388,7 +388,7 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                 <Button
                   size="sm"
                   onClick={() => toast.success('Sensing parameters saved to device')}
-                  className="w-full bg-primary text-primary-foreground text-xs font-semibold rounded-xl h-9 mt-2"
+                  className="w-full bg-primary text-primary-foreground text-xs sm:text-sm font-normal rounded-xl h-10 mt-2"
                 >
                   Save Sensing Preferences
                 </Button>
@@ -399,43 +399,43 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
             <TabsContent value="settings" className="space-y-4 m-0">
               <div className="p-4 rounded-xl border border-border/80 bg-card space-y-3.5">
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Device Identifier</Label>
+                  <Label className="text-xs sm:text-sm font-normal text-muted-foreground">Device Identifier</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       readOnly
                       value={device.device_id}
-                      className="font-mono text-xs bg-secondary/40 h-8 text-foreground"
+                      className="font-mono text-xs sm:text-sm font-normal bg-secondary/40 h-9 text-foreground rounded-xl"
                     />
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleCopy(device.device_id, 'Device ID')}
-                      className="h-8 px-2.5 rounded-lg text-xs"
+                      className="h-9 px-3 rounded-xl text-xs sm:text-sm font-normal"
                     >
-                      <Copy size={13} />
+                      <Copy size={14} />
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Assigned Space / Room</Label>
+                  <Label className="text-xs sm:text-sm font-normal text-muted-foreground">Assigned Space / Room</Label>
                   <Input
                     defaultValue={device.room || 'Living Room'}
-                    className="text-xs bg-secondary/40 h-8 text-foreground"
+                    className="text-xs sm:text-sm font-normal bg-secondary/40 h-9 text-foreground rounded-xl"
                   />
                 </div>
 
-                <div className="pt-2 border-t border-border/60 space-y-2 text-xs">
+                <div className="pt-2 border-t border-border/60 space-y-2 text-xs sm:text-sm">
                   <div className="flex justify-between items-center py-1">
                     <span className="text-muted-foreground">Wi-Fi Telemetry</span>
-                    <span className="font-mono text-foreground font-medium flex items-center gap-1.5">
-                      <Wifi size={13} className="text-emerald-500" />
+                    <span className="font-mono text-foreground font-normal flex items-center gap-1.5">
+                      <Wifi size={14} className="text-emerald-500" />
                       {device.wifi_rssi ? `${device.wifi_rssi} dBm` : '-54 dBm (Stable)'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span className="text-muted-foreground">Firmware Build</span>
-                    <span className="font-mono text-foreground font-medium">
+                    <span className="font-mono text-foreground font-normal">
                       {device.firmware_version || 'v1.0.0-PROD'}
                     </span>
                   </div>
@@ -443,16 +443,16 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
 
                 <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
                   <div>
-                    <b className="text-xs font-semibold text-foreground">Rotate API Key</b>
-                    <p className="text-[11px] text-muted-foreground">Invalidates existing device token</p>
+                    <span className="text-xs sm:text-sm font-normal text-foreground block">Rotate API Key</span>
+                    <p className="text-xs font-normal text-muted-foreground">Invalidates existing device token</p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleRotateKey}
-                    className="text-xs h-8 px-2.5 rounded-lg"
+                    className="text-xs sm:text-sm font-normal h-9 px-3 rounded-xl"
                   >
-                    <RefreshCw size={13} className="mr-1" />
+                    <RefreshCw size={14} className="mr-1" />
                     Rotate
                   </Button>
                 </div>
@@ -460,17 +460,17 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
 
               {/* Danger Zone */}
               <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 space-y-2">
-                <b className="text-xs font-semibold text-destructive">Danger Zone</b>
-                <p className="text-[11px] text-muted-foreground">
+                <span className="text-xs sm:text-sm font-normal text-destructive block">Danger Zone</span>
+                <p className="text-xs font-normal text-muted-foreground">
                   Unlinking will sever real-time telemetry ingestion and automation routines for this unit.
                 </p>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={handleRemoveDevice}
-                  className="w-full text-xs font-semibold h-8 rounded-xl"
+                  className="w-full text-xs sm:text-sm font-normal h-9 rounded-xl"
                 >
-                  <Trash2 size={13} className="mr-1.5" />
+                  <Trash2 size={14} className="mr-1.5" />
                   Unlink & Remove Device
                 </Button>
               </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDevice } from '../contexts/DeviceContext';
-import { useOutletContext, useNavigate, Link } from 'react-router-dom';
+import { useOutletContext, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
+  ChevronLeft,
   ExternalLink,
   Bot,
   MapPin,
@@ -93,14 +94,21 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
 
   const isNameSameAsRoom =
     (device.name || '').trim().toLowerCase() === (device.room || '').trim().toLowerCase();
+  // Consumer-friendly hardware type label
+  const hardwareLabel = device.device_type?.includes('sensor') ? 'Presence Sensor' : 'Radar Switch';
+  // Show location + hardware type; if name matches room, show hardware type as subtitle to avoid duplicate text
   const subtitleText = isNameSameAsRoom
-    ? (device.device_type?.includes('sensor') ? 'Radar Node' : 'Radar Switch')
-    : (device.room || 'Living Room');
+    ? hardwareLabel
+    : (device.room || 'Unassigned');
+
+  // Consumer-friendly mode labels (no jargon)
+  const modeLabels = { auto: 'Smart Auto', manual: 'Manual', sleep: 'Sleep Guard', fall: 'Fall Detection', away: 'Away Mode' };
+  const modeLabel = modeLabels[mode?.toLowerCase()] || (mode ? `${mode.charAt(0).toUpperCase()}${mode.slice(1)}` : 'Smart Auto');
 
   return (
     <Card
       onClick={() => onInspect(device)}
-      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[175px] sm:min-h-[190px] select-none"
+      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl p-4 sm:p-5 flex flex-col justify-between min-h-[160px] sm:min-h-[190px] select-none"
     >
       {/* Top Row: Device Thumbnail, Title, Room, and Kebab Button */}
       <div className="flex items-center justify-between gap-3">
@@ -143,7 +151,7 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
 
       {/* Presence & Connectivity Status Pill (Consumer-Grade) */}
       <div
-        className={`my-3 px-3.5 py-2 rounded-xl flex items-center justify-between text-xs transition-all ${
+        className={`my-2.5 sm:my-3 px-3 sm:px-3.5 py-2 rounded-xl flex items-center justify-between text-xs transition-all ${
           !isOnline
             ? 'bg-secondary/30 text-muted-foreground/80'
             : isOccupied
@@ -164,7 +172,7 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
           )}
           <span className="font-normal truncate">
             {!isOnline
-              ? 'Device Offline'
+              ? 'Offline · Check power or Wi-Fi'
               : isOccupied
               ? 'Motion Detected'
               : 'Space Clear'}
@@ -173,7 +181,7 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
 
         <span className="text-[11px] font-normal opacity-70 shrink-0 ml-2">
           {!isOnline
-            ? 'Disconnected'
+            ? 'Reconnect'
             : isOccupied
             ? (data?.sensor_data?.distance ? `${Math.round(data.sensor_data.distance)} cm` : 'Live')
             : 'Idle'}
@@ -185,9 +193,9 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
         className="flex items-center justify-between pt-0.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-[11px] sm:text-xs font-normal capitalize px-2.5 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40 select-none flex items-center gap-1.5">
+        <span className="text-xs font-normal px-2.5 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40 select-none flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
-          {mode} mode
+          {modeLabel}
         </span>
 
         <div className="flex items-center gap-2">
@@ -208,16 +216,22 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
   );
 }
 
-export default function DeviceManagement() {
+export default function DeviceManagement({ isDashboard: propIsDashboard } = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isDashboard =
+    propIsDashboard !== undefined
+      ? propIsDashboard
+      : (location.pathname === '/' || location.pathname === '/dashboard');
+
   const context = useOutletContext() || {};
   const setHeaderProps = context.setHeaderProps;
 
   useEffect(() => {
     if (setHeaderProps) {
-      setHeaderProps({ title: 'My Spaces' });
+      setHeaderProps({ title: isDashboard ? 'Overview' : 'Devices' });
     }
-  }, [setHeaderProps]);
+  }, [setHeaderProps, isDashboard]);
 
   const { devices, linkDevice } = useDevice();
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -256,6 +270,14 @@ export default function DeviceManagement() {
       return roomStr.includes(activeSpace.toLowerCase());
     });
   }, [devices, activeSpace]);
+
+  // Show only 2 devices on dashboard, and all devices on devices page
+  const displayedDevices = useMemo(() => {
+    if (isDashboard) {
+      return filteredDevices.slice(0, 2);
+    }
+    return filteredDevices;
+  }, [isDashboard, filteredDevices]);
 
   // Status strip aggregates
   const onlineCount = useMemo(() => devices.filter((d) => d.status === 'online').length, [devices]);
@@ -425,14 +447,35 @@ export default function DeviceManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+
       {/* 1. Headrow: Title, Live Telemetry Subtitle, and Top Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
         {/* Hidden on mobile, visible on sm and up */}
         <div className="hidden sm:block">
-          <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
-            My Devices
-          </h1>
+          {!isDashboard && (
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1.5 transition-colors group"
+            >
+              <ChevronLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
+              <span>Back to Overview</span>
+            </Link>
+          )}
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
+              {isDashboard ? 'My Devices' : 'All Devices'}
+            </h1>
+            {isDashboard && (
+              <Link
+                to="/devices"
+                className="text-xs sm:text-sm font-normal text-primary hover:underline inline-flex items-center gap-1 ml-1"
+              >
+                View all
+                <ChevronRight size={14} />
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Top Controls Toolbar: on mobile distributes Add Device to right, rest to left */}
@@ -495,55 +538,94 @@ export default function DeviceManagement() {
         </div>
       </div>
 
-      {/* 2. Mobile Quick Access Bar (Unified Segmented Control Strip) */}
-      <div className="sm:hidden pt-0.5">
-        <div className="bg-card border border-border/80 rounded-2xl p-1 flex items-center divide-x divide-border/60 shadow-2xs">
-          {/* Action 1: Turn all OFF */}
-          <button
-            type="button"
-            onClick={handleAllOff}
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
-          >
-            <div className="w-6 h-6 rounded-md bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-              <Power className="w-3.5 h-3.5" />
-            </div>
-            <span className="truncate">All OFF</span>
-          </button>
+      {/* 2. Mobile Quick Access (Smart Scene Action Tiles) - Dashboard Only */}
+      {isDashboard && (
+        <div className="sm:hidden">
+          <div className="grid grid-cols-3 gap-2">
+            {/* Action 1: Turn all OFF */}
+            <button
+              type="button"
+              onClick={handleAllOff}
+              className="group flex flex-col items-center justify-center p-2.5 rounded-2xl border border-border/80 bg-card hover:bg-secondary/40 active:scale-[0.96] transition-all shadow-2xs text-center min-h-[78px]"
+            >
+              <div className="w-8 h-8 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-1 transition-transform group-hover:scale-105 group-active:scale-95">
+                <Power className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-normal text-foreground leading-tight">
+                Turn OFF
+              </span>
+              <span className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                All online
+              </span>
+            </button>
 
-          {/* Action 2: All Auto Mode */}
-          <button
-            type="button"
-            onClick={handleAllAuto}
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
-          >
-            <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <span className="truncate">Auto</span>
-          </button>
+            {/* Action 2: Smart Auto Mode */}
+            <button
+              type="button"
+              onClick={handleAllAuto}
+              className="group flex flex-col items-center justify-center p-2.5 rounded-2xl border border-border/80 bg-card hover:bg-secondary/40 active:scale-[0.96] transition-all shadow-2xs text-center min-h-[78px]"
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-1 transition-transform group-hover:scale-105 group-active:scale-95">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-normal text-foreground leading-tight">
+                Smart Auto
+              </span>
+              <span className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                Presence
+              </span>
+            </button>
 
-          {/* Action 3: Night Routine */}
-          <button
-            type="button"
-            onClick={handleNightRoutine}
-            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
-          >
-            <div className="w-6 h-6 rounded-md bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
-              <Moon className="w-3.5 h-3.5" />
-            </div>
-            <span className="truncate">Night</span>
-          </button>
+            {/* Action 3: Bedtime Mode */}
+            <button
+              type="button"
+              onClick={handleNightRoutine}
+              className="group flex flex-col items-center justify-center p-2.5 rounded-2xl border border-border/80 bg-card hover:bg-secondary/40 active:scale-[0.96] transition-all shadow-2xs text-center min-h-[78px]"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-1 transition-transform group-hover:scale-105 group-active:scale-95">
+                <Moon className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-normal text-foreground leading-tight">
+                Bedtime
+              </span>
+              <span className="text-[10px] font-normal text-muted-foreground mt-0.5">
+                Sleep guard
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Devices Section Title (Mobile Only) */}
       <div className="sm:hidden flex items-center justify-between pt-1">
-        <h2 className="text-lg font-normal tracking-tight text-foreground flex items-center gap-2.5">
-          <span>Devices</span>
-          <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
-            {filteredDevices.length}
-          </span>
-        </h2>
+        <div className="flex items-center gap-2">
+          {!isDashboard && (
+            <Link
+              to="/"
+              className="p-1 -ml-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+              title="Back to Overview"
+            >
+              <ChevronLeft size={18} />
+            </Link>
+          )}
+          <h2 className="text-base font-normal tracking-tight text-foreground flex items-center gap-2">
+            <span>{isDashboard ? 'Devices' : 'All Devices'}</span>
+            <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+              {isDashboard && filteredDevices.length > 2
+                ? `2 of ${filteredDevices.length}`
+                : filteredDevices.length}
+            </span>
+          </h2>
+        </div>
+        {isDashboard && (
+          <Link
+            to="/devices"
+            className="text-xs font-normal text-primary hover:underline inline-flex items-center gap-0.5"
+          >
+            View all
+            <ChevronRight size={13} />
+          </Link>
+        )}
       </div>
 
       {/* 4. Devices Grid or Table View */}
@@ -565,8 +647,8 @@ export default function DeviceManagement() {
           </Button>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {filteredDevices.map((device) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+          {displayedDevices.map((device) => (
             <PrototypeDeviceCard
               key={device.device_id}
               device={device}
@@ -574,28 +656,12 @@ export default function DeviceManagement() {
               navigate={navigate}
             />
           ))}
-
-          {/* "+ Link New Device" Dashed Card */}
-          <div
-            onClick={handleOpenAddDevice}
-            className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl sm:rounded-[22px] p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[190px] group"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Plus size={22} />
-            </div>
-            <span className="text-base font-normal text-foreground mt-2.5 group-hover:text-primary transition-colors">
-              Link New Device
-            </span>
-            <span className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5">
-              Assign sensor to another room
-            </span>
-          </div>
         </div>
       ) : (
         <>
           {/* Mobile Fallback: Mobile always renders Card Grid */}
-          <div className="sm:hidden grid grid-cols-1 gap-4">
-            {filteredDevices.map((device) => (
+          <div className="sm:hidden grid grid-cols-1 gap-3">
+            {displayedDevices.map((device) => (
               <PrototypeDeviceCard
                 key={device.device_id}
                 device={device}
@@ -603,22 +669,6 @@ export default function DeviceManagement() {
                 navigate={navigate}
               />
             ))}
-
-            {/* "+ Link New Device" Dashed Card */}
-            <div
-              onClick={handleOpenAddDevice}
-              className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[190px] group"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Plus size={22} />
-              </div>
-              <span className="text-base font-normal text-foreground mt-2.5 group-hover:text-primary transition-colors">
-                Link New Device
-              </span>
-              <span className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5">
-                Assign sensor to another room
-              </span>
-            </div>
           </div>
 
           {/* Tabular Device View (.tablecard) - Desktop Only */}
@@ -635,7 +685,7 @@ export default function DeviceManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {filteredDevices.map((device) => (
+                  {displayedDevices.map((device) => (
                     <tr
                       key={device.device_id}
                       onClick={() => handleOpenInspect(device)}
@@ -700,116 +750,144 @@ export default function DeviceManagement() {
         </>
       )}
 
-      {/* 5. Quick Actions Sub-Cards (Compact in Width) & Latest Alert */}
-      <div className="pt-2">
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch gap-4 sm:gap-5">
-          {/* Sub Card 1: Turn all OFF (Compact Width) */}
-          <button
-            type="button"
-            onClick={handleAllOff}
-            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+      {/* View All Devices Link/Button on Dashboard */}
+      {isDashboard && (
+        <div className="flex justify-center pt-1">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/devices')}
+            className="w-full sm:w-auto px-5 h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-normal border-border/80 hover:bg-secondary/40 text-foreground flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:border-primary/40"
           >
-            <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-              <Power className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-destructive transition-colors">
-                Turn all OFF
-              </span>
-              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                Switch off all online relays instantly
-              </span>
-            </div>
-          </button>
-
-          {/* Sub Card 2: All Auto Mode (Compact Width) */}
-          <button
-            type="button"
-            onClick={handleAllAuto}
-            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-primary transition-colors">
-                All Auto Mode
-              </span>
-              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                Enforce radar presence automation
-              </span>
-            </div>
-          </button>
-
-          {/* Sub Card 3: Night Routine (Compact Width) */}
-          <button
-            type="button"
-            onClick={handleNightRoutine}
-            className="hidden sm:flex w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
-          >
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
-              <Moon className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-indigo-500 transition-colors">
-                Night Routine
-              </span>
-              <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
-                Engage quiet sleep surveillance
-              </span>
-            </div>
-          </button>
-
-          {/* Sub Card 4: Latest Alert Feed */}
-          <Card className="flex-1 min-w-[260px] rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between min-h-[160px] sm:min-h-[175px]">
-            <div className="flex items-center justify-between pb-2 border-b border-border/30">
-              <h2 className="text-base font-normal text-foreground">
-                Latest alert
-              </h2>
-              <Link to="/notifications" className="text-xs sm:text-sm font-normal text-primary hover:underline">
-                History
-              </Link>
-            </div>
-
-            <div className="flex-1 flex flex-col justify-center my-auto">
-              {displayAlerts.length === 0 ? (
-                <div className="py-2 text-center">
-                  <p className="text-xs font-normal text-muted-foreground">
-                    No active alerts • All monitored spaces are clear
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border/40">
-                  {displayAlerts.slice(0, 2).map((item) => (
-                    <div key={item.id} className="py-2 first:pt-0 last:pb-0 flex items-start gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold mt-0.5 select-none ${
-                          item.isAlert
-                            ? 'bg-red-500/10 text-red-500'
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        }`}
-                      >
-                        {item.isAlert ? '!' : '◉'}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-normal text-foreground leading-tight">
-                          {item.device}
-                        </div>
-                        <div className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
-                          {item.text}
-                        </div>
-                        <div className="text-xs font-normal text-muted-foreground/70 mt-0.5">
-                          {item.time}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
+            <span>View all {filteredDevices.length > 0 ? `${filteredDevices.length} ` : ''}devices</span>
+            <ChevronRight size={14} className="text-muted-foreground" />
+          </Button>
         </div>
-      </div>
+      )}
+
+      {/* 5. Quick Actions Sub-Cards (Compact in Width) & Latest Alert - Dashboard Only */}
+      {isDashboard && (
+        <div className="pt-2">
+          <div className="flex flex-col lg:flex-row items-stretch gap-4 sm:gap-5">
+            {/* Quick Actions Column (Desktop Only): Turn all OFF & Smart Auto on top, Bedtime Mode completely full width below */}
+            <div className="hidden sm:flex flex-1 flex-col justify-between gap-4 sm:gap-5">
+              {/* Row 1: Turn all OFF & Smart Auto */}
+              <div className="grid grid-cols-2 gap-4 sm:gap-5">
+                {/* Sub Card 1: Turn all OFF */}
+                <button
+                  type="button"
+                  onClick={handleAllOff}
+                  className="w-full p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[145px] sm:min-h-[160px]"
+                >
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-3 sm:mb-4 transition-transform group-hover:scale-105">
+                    <Power className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div>
+                    <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-destructive transition-colors">
+                      Turn all OFF
+                    </span>
+                    <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                      Turn off all lights &amp; connected devices
+                    </span>
+                  </div>
+                </button>
+
+                {/* Sub Card 2: Smart Auto */}
+                <button
+                  type="button"
+                  onClick={handleAllAuto}
+                  className="w-full p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[145px] sm:min-h-[160px]"
+                >
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 sm:mb-4 transition-transform group-hover:scale-105">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div>
+                    <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-primary transition-colors">
+                      Smart Auto
+                    </span>
+                    <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                      Auto-control lights based on who's home
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Row 2: Bedtime Mode (Completely Full Width Below Turn Off & Smart Auto) */}
+              <button
+                type="button"
+                onClick={handleNightRoutine}
+                className="w-full p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex items-center justify-between shadow-xs"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+                    <Moon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-indigo-500 transition-colors">
+                      Bedtime Mode
+                    </span>
+                    <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-0.5 leading-relaxed">
+                      Quiet monitoring &amp; sleep tracking for bedtime
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-normal text-indigo-500 bg-indigo-500/10 px-3.5 py-1.5 rounded-full shrink-0 group-hover:bg-indigo-500/20 transition-colors">
+                  Activate
+                </span>
+              </button>
+            </div>
+
+            {/* Sub Card 4: Latest Alert Feed */}
+            <Card className="flex-1 min-w-[260px] rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-xs flex flex-col justify-between min-h-[140px] sm:min-h-[230px] lg:min-h-[255px]">
+              <div className="flex items-center justify-between pb-2.5 sm:pb-3.5 border-b border-border/30">
+                <h2 className="text-sm sm:text-xl font-normal text-foreground">
+                  Recent Activity
+                </h2>
+                <Link to="/notifications" className="text-xs sm:text-base font-normal text-primary hover:underline">
+                  View all
+                </Link>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-center my-auto py-2.5 sm:py-5">
+                {displayAlerts.length === 0 ? (
+                  <div className="py-2 text-center">
+                    <p className="text-xs sm:text-base font-normal text-muted-foreground flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-emerald-500 shrink-0" />
+                      All quiet · No events in your spaces
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/40">
+                    {displayAlerts.slice(0, 2).map((item) => (
+                      <div key={item.id} className="py-2 first:pt-0 last:pb-0 flex items-start gap-2.5 sm:gap-3">
+                        <div
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold mt-0.5 select-none ${
+                            item.isAlert
+                              ? 'bg-red-500/10 text-red-500'
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}
+                        >
+                          {item.isAlert ? '!' : '◉'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs sm:text-base font-normal text-foreground leading-tight">
+                            {item.device}
+                          </div>
+                          <div className="text-[11px] sm:text-sm font-normal text-muted-foreground mt-0.5 leading-snug">
+                            {item.text}
+                          </div>
+                          <div className="text-[10px] sm:text-xs font-normal text-muted-foreground/70 mt-0.5">
+                            {item.time}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Slide-out Inspect Drawer */}
       <DeviceInspectDrawer

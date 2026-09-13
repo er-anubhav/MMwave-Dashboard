@@ -18,19 +18,19 @@ export default function DashboardNavbar({ isConnected }) {
 
   const navItems = [
     { name: "Overview", path: "/" },
+    { name: "Devices", path: "/devices" },
     { name: "Alerts", path: "/notifications" },
-    { name: "Profile", path: "/profile" },
+    { name: "Settings", path: "/settings" },
   ];
 
   const isPathActive = (itemPath) => {
     if (itemPath === "/") {
-      return (
-        location.pathname === "/" ||
-        location.pathname === "/dashboard" ||
-        location.pathname === "/devices"
-      );
+      return location.pathname === "/" || location.pathname === "/dashboard";
     }
-    return location.pathname === itemPath;
+    if (itemPath === "/settings") {
+      return location.pathname === "/settings" || location.pathname === "/profile";
+    }
+    return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };
 
   return (

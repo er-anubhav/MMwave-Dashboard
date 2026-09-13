@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'LYFSense',
+        title: 'BlareXSense',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,

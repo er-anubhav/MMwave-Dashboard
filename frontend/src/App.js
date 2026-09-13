@@ -6,7 +6,7 @@ import DeviceManagement from "./pages/DeviceManagement";
 import DeviceDetail from "./pages/DeviceDetail";
 import DeviceAutomationsPage from "./pages/DeviceAutomationsPage";
 import Notifications from "./pages/Notifications";
-import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -34,11 +34,12 @@ function App() {
             >
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/devices" element={<DeviceManagement />} />
+              <Route path="/devices" element={<DeviceManagement isDashboard={false} />} />
               <Route path="/devices/:deviceId" element={<DeviceDetail />} />
               <Route path="/devices/:deviceId/automations" element={<DeviceAutomationsPage />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

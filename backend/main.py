@@ -95,11 +95,26 @@ class RefreshTokenRequest(BaseModel):
 class DeviceLinkRequest(BaseModel):
     device_id: str = Field(..., min_length=5, max_length=50)
     name: Optional[str] = None
-    device_type: str = Field(default='LYFSense_switch')
+    device_type: str = Field(default='BlareXSense_switch')
 
 
 class DeviceRenameRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
+    room: Optional[str] = None
+
+
+class DeviceSensingRequest(BaseModel):
+    range: Optional[float] = None
+    sensitivity: Optional[float] = None
+    delay: Optional[int] = None
+    micro_movement: Optional[bool] = None
+    false_filter: Optional[bool] = None
+
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class SensorDataUpdate(BaseModel):
@@ -127,6 +142,11 @@ class SensorDataUpdate(BaseModel):
 class ModeUpdate(BaseModel):
     device_id: str
     mode: str
+    alert_start: Optional[str] = None
+    alert_end: Optional[str] = None
+    alert_delay: Optional[int] = None
+    push_enabled: Optional[bool] = None
+    siren_enabled: Optional[bool] = None
 
 
 class RelayUpdate(BaseModel):
@@ -167,7 +187,7 @@ class NotificationProviderUpdateRequest(BaseModel):
 class NotificationTestRequest(BaseModel):
     provider: Optional[str] = None
     device_id: Optional[str] = None
-    message: str = Field(default="Test notification from LYFSense Dashboard", min_length=2, max_length=300)
+    message: str = Field(default="Test notification from BlareXSense Dashboard", min_length=2, max_length=300)
 
 
 class SystemLogCreateRequest(BaseModel):
@@ -503,7 +523,7 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler"""
     # Startup
     print("\n" + "="*60)
-    print("🚀 LYFSense Dashboard - API Backend Starting")
+    print("🚀 BlareXSense Dashboard - API Backend Starting")
     print("="*60)
     
     # Initialize database
@@ -536,7 +556,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LYFSense Dashboard - API Backend",
+    title="BlareXSense Dashboard - API Backend",
     description="Tenant-aware API server for Smart Switch Firmware",
     version="2.0",
     lifespan=lifespan,
@@ -602,7 +622,7 @@ async def auth_rate_limit_middleware(request: Request, call_next):
 async def root():
     """Root endpoint"""
     return {
-        "message": "LYFSense Dashboard - API Backend",
+        "message": "BlareXSense Dashboard - API Backend",
         "version": "2.0",
         "database": "PostgreSQL via DATABASE_URL, SQLite fallback for local development",
     }
@@ -613,7 +633,7 @@ async def health_check():
     """Basic backend health check endpoint"""
     return {
         "status": "ok",
-        "service": "LYFSense-backend",
+        "service": "BlareXSense-backend",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
@@ -707,6 +727,22 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     return public_user(current_user)
 
 
+@app.put("/api/auth/me")
+@app.patch("/api/auth/me")
+async def update_current_user_info(
+    profile_data: UpdateProfileRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update current user information"""
+    user_id = current_user["id"]
+    success = database.update_user_profile(user_id, name=profile_data.name, email=profile_data.email)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to update profile or email already in use")
+    
+    updated_user = database.get_user_by_id(user_id)
+    return public_user(updated_user)
+
+
 @app.post("/api/auth/change-password")
 async def change_password(request: PasswordChangeRequest, current_user: dict = Depends(get_current_user)):
     """Change or reset password for authenticated user"""
@@ -744,7 +780,7 @@ async def get_current_tenant(current_user: dict = Depends(get_current_user)):
 async def link_device(device_data: DeviceLinkRequest, current_user: dict = Depends(get_current_user)):
     """Link a new device to user account"""
     device_name = device_data.name or f"Device {device_data.device_id}"
-    device_type = device_data.device_type or 'LYFSense_switch'
+    device_type = device_data.device_type or 'BlareXSense_switch'
     
     # Check if device already exists
     existing_device = database.get_device_by_id(device_data.device_id)
@@ -777,6 +813,7 @@ async def get_devices(current_user: dict = Depends(get_current_user)):
     return devices
 
 
+@app.post("/api/devices/{device_id}/rename")
 @app.put("/api/devices/{device_id}/rename")
 async def rename_device_endpoint(
     device_id: str,
@@ -814,6 +851,28 @@ async def rename_device_patch_endpoint(
 ):
     """Frontend-compatibility alias to rename a device"""
     return await rename_device_endpoint(device_id, rename_data, current_user)
+
+
+@app.post("/api/devices/{device_id}/sensing")
+@app.put("/api/devices/{device_id}/sensing")
+async def update_device_sensing_endpoint(
+    device_id: str,
+    sensing_data: DeviceSensingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Save presence sensing parameters for a device"""
+    if not database.verify_device_ownership(device_id, current_user["id"]):
+        raise HTTPException(status_code=403, detail="Device not found or access denied")
+    
+    database.create_system_log(
+        user_id=current_user["id"],
+        device_id=device_id,
+        event="Sensing config updated",
+        log_type="action",
+        status="Success",
+        metadata=sensing_data.model_dump(exclude_none=True)
+    )
+    return {"status": "success", "message": "Presence sensing configuration saved"}
 
 
 @app.delete("/api/devices/{device_id}/unlink")
@@ -908,6 +967,9 @@ async def get_sensor_data_history(
     return {"device_id": device_id, "count": len(history), "history": history}
 
 
+CALIBRATION_REQUESTS = set()
+
+
 @app.post("/api/data")
 async def receive_sensor_data(data: SensorDataUpdate):
     """Receive sensor data from device (used by hardware)"""
@@ -955,9 +1017,6 @@ async def receive_sensor_data(data: SensorDataUpdate):
             "calibrate": calibrate
         }
     }
-
-
-CALIBRATION_REQUESTS = set()
 
 
 @app.get("/api/command")
@@ -1077,11 +1136,13 @@ async def set_mode(
         raise HTTPException(status_code=403, detail="Device not found or access denied")
     
     # Validate mode
-    if mode_data.mode not in ["fall", "sleep", "auto", "manual", "intrusion"]:
-        raise HTTPException(status_code=400, detail="Invalid mode. Must be 'fall', 'sleep', 'auto', 'manual', or 'intrusion'")
+    valid_modes = ["fall", "sleep", "auto", "manual", "intrusion", "alert"]
+    effective_mode = "intrusion" if mode_data.mode == "alert" else mode_data.mode
+    if mode_data.mode not in valid_modes:
+        raise HTTPException(status_code=400, detail=f"Invalid mode. Must be one of {valid_modes}")
     
     # Update mode
-    success = database.update_device_mode(mode_data.device_id, mode_data.mode)
+    success = database.update_device_mode(mode_data.device_id, effective_mode)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update mode")
 
@@ -1123,7 +1184,7 @@ async def export_backup(
     """Export local account data as JSON."""
     payload = database.export_user_data(current_user["id"], include_secrets=include_secrets)
     headers = {
-        "Content-Disposition": 'attachment; filename="LYFSense-dashboard-backup.json"'
+        "Content-Disposition": 'attachment; filename="BlareXSense-dashboard-backup.json"'
     }
     return JSONResponse(content=payload, headers=headers)
 
@@ -1354,7 +1415,7 @@ async def send_test_notification(
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🎯 Starting LYFSense Dashboard CPU Backend")
+    print("🎯 Starting BlareXSense Dashboard CPU Backend")
     print("="*60)
     print("\nThis service provides:")
     print("  ✅ FastAPI backend server")

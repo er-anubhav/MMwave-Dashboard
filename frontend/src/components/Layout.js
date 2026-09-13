@@ -28,7 +28,7 @@ export default function Layout() {
       </header>
 
       {/* Main content: comfortable max-w-7xl container matching layout */}
-      <main className="mx-auto w-full max-w-7xl flex-1 flex flex-col px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 flex flex-col px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <Outlet context={contextValue} />
       </main>
     </div>

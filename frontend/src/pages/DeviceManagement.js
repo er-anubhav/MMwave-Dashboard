@@ -401,8 +401,9 @@ export default function DeviceManagement() {
   return (
     <div className="space-y-6">
       {/* 1. Headrow: Title, Live Telemetry Subtitle, and Top Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
+        {/* Hidden on mobile, visible on sm and up */}
+        <div className="hidden sm:block">
           <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
             My Spaces
           </h1>
@@ -418,57 +419,61 @@ export default function DeviceManagement() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap">
-          {/* Space / Room Filter (Enlarged) */}
-          <div className="relative flex items-center gap-2.5 bg-card border border-border/80 rounded-2xl px-3.5 sm:px-4 h-11 sm:h-12 text-sm sm:text-base font-normal text-foreground min-w-[170px] sm:min-w-[210px] shadow-2xs hover:border-primary/50 transition-colors">
-            <MapPin size={18} className="text-primary shrink-0" />
-            <select
-              value={localSpace}
-              onChange={(e) => setLocalSpace(e.target.value)}
-              className="bg-transparent border-0 font-normal text-foreground text-sm sm:text-base focus:outline-none cursor-pointer w-full appearance-none pr-6 py-1"
-              aria-label="Filter by space"
-            >
-              {availableRooms.map((room) => (
-                <option key={room} value={room} className="bg-card text-foreground py-1">
-                  {room}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={16} className="text-muted-foreground shrink-0 pointer-events-none absolute right-3.5" />
+        {/* Top Controls Toolbar: on mobile distributes Add Device to right, rest to left */}
+        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+          {/* Left Controls: Space Filter & View Toggle */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Space / Room Filter */}
+            <div className="relative flex items-center gap-2 bg-card border border-border/80 rounded-xl sm:rounded-2xl px-3 sm:px-4 h-10 sm:h-12 text-xs sm:text-base font-normal text-foreground min-w-[130px] sm:min-w-[210px] shadow-2xs hover:border-primary/50 transition-colors">
+              <MapPin size={16} className="text-primary shrink-0 sm:w-[18px] sm:h-[18px]" />
+              <select
+                value={localSpace}
+                onChange={(e) => setLocalSpace(e.target.value)}
+                className="bg-transparent border-0 font-normal text-foreground text-xs sm:text-base focus:outline-none cursor-pointer w-full appearance-none pr-5 sm:pr-6 py-1"
+                aria-label="Filter by space"
+              >
+                {availableRooms.map((room) => (
+                  <option key={room} value={room} className="bg-card text-foreground py-1">
+                    {room}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="text-muted-foreground shrink-0 pointer-events-none absolute right-2.5 sm:right-3.5 sm:w-4 sm:h-4" />
+            </div>
+
+            {/* View Toggle (Grid / Table) */}
+            <div className="flex items-center bg-secondary/40 border border-border/80 rounded-xl sm:rounded-2xl p-1 h-10 sm:h-12">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-lg sm:rounded-xl ${
+                  viewMode === 'grid' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Card Grid View"
+              >
+                <LayoutGrid size={16} className="sm:w-[18px] sm:h-[18px]" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-lg sm:rounded-xl ${
+                  viewMode === 'table' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Table View"
+              >
+                <List size={16} className="sm:w-[18px] sm:h-[18px]" />
+              </Button>
+            </div>
           </div>
 
-          {/* View Toggle (Grid / Table) */}
-          <div className="flex items-center bg-secondary/40 border border-border/80 rounded-2xl p-1 h-11 sm:h-12">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className={`h-9 w-9 p-0 rounded-xl ${
-                viewMode === 'grid' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="Card Grid View"
-            >
-              <LayoutGrid size={18} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewMode('table')}
-              className={`h-9 w-9 p-0 rounded-xl ${
-                viewMode === 'table' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="Table View"
-            >
-              <List size={18} />
-            </Button>
-          </div>
-
-          {/* Add Device Primary Button */}
+          {/* Right Control: Add Device Primary Button */}
           <Button
             onClick={handleOpenAddDevice}
-            className="h-11 sm:h-12 px-5 rounded-2xl font-normal text-sm sm:text-base bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-xs transition-all"
+            className="h-10 sm:h-12 px-3.5 sm:px-5 rounded-xl sm:rounded-2xl font-normal text-xs sm:text-base bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 sm:gap-2 shadow-xs transition-all shrink-0 whitespace-nowrap"
           >
-            <Plus size={18} />
+            <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
             <span>Add Device</span>
           </Button>
         </div>

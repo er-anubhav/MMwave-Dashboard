@@ -292,15 +292,22 @@ export default function DeviceManagement() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Headrow: Title, Subtitle, and Top Action Buttons */}
+      {/* 1. Headrow: Title, Live Telemetry Subtitle, and Top Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
             My Spaces
           </h1>
-          <p className="text-sm sm:text-base font-normal text-muted-foreground mt-1">
-            See what matters. Everything else stays one tap away.
-          </p>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                onlineCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50'
+              }`}
+            />
+            <span>
+              <span className="text-foreground font-normal">{onlineCount}</span> of {devices.length} {devices.length === 1 ? 'sensor' : 'sensors'} online
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
@@ -356,24 +363,6 @@ export default function DeviceManagement() {
             <span>Add Device</span>
           </Button>
         </div>
-      </div>
-
-      {/* 2. Status Strip: Refined KPI Chip Strip */}
-      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-        <span className="inline-flex items-center gap-2 bg-card border border-border/70 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-normal text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span><span className="text-foreground">{onlineCount}</span> online</span>
-        </span>
-
-        <span className="inline-flex items-center gap-2 bg-card border border-border/70 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-normal text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-primary" />
-          <span><span className="text-foreground">{filteredDevices.length}</span> monitored spaces</span>
-        </span>
-
-        <span className="inline-flex items-center gap-2 bg-card border border-border/70 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-normal text-muted-foreground">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          <span>Smart auto-off active</span>
-        </span>
       </div>
 
       {/* 3. Devices Section Title */}

@@ -720,10 +720,6 @@ export default function DeviceManagement() {
                     type="button"
                     onClick={() => {
                       setAddMethod('qr');
-                      if (!linkForm.deviceId) {
-                        const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
-                        setLinkForm((prev) => ({ ...prev, deviceId: demoId }));
-                      }
                     }}
                     className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between gap-3 ${
                       addMethod === 'qr'
@@ -788,24 +784,9 @@ export default function DeviceManagement() {
                     />
 
                     <div className="space-y-1.5 pt-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="detectedId" className="text-xs font-normal text-muted-foreground">
-                          {linkForm.deviceId ? 'Detected Device ID (Editable if needed)' : 'Or enter Device ID manually'}
-                        </Label>
-                        {!linkForm.deviceId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const testId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
-                              setLinkForm((prev) => ({ ...prev, deviceId: testId }));
-                              toast.info(`Simulated QR scan: ${testId}`);
-                            }}
-                            className="text-xs text-primary hover:underline"
-                          >
-                            Simulate Demo Scan
-                          </button>
-                        )}
-                      </div>
+                      <Label htmlFor="detectedId" className="text-xs font-normal text-muted-foreground">
+                        {linkForm.deviceId ? 'Detected Device ID (Editable if needed)' : 'Or enter Device ID manually'}
+                      </Label>
                       <Input
                         id="detectedId"
                         value={linkForm.deviceId}

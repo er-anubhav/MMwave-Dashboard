@@ -233,6 +233,43 @@ export default function DeviceManagement() {
   // Status strip aggregates
   const onlineCount = useMemo(() => devices.filter((d) => d.status === 'online').length, [devices]);
 
+  // Fetch alerts and strictly restrict to top 2
+  const [alerts, setAlerts] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    api.get('/notifications/history')
+      .then((res) => {
+        if (mounted && res.data?.notifications) {
+          setAlerts(res.data.notifications.slice(0, 2));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const displayAlerts = useMemo(() => {
+    if (alerts && alerts.length > 0) {
+      return alerts.slice(0, 2);
+    }
+    return [
+      {
+        id: 'default-sync',
+        event: 'Radar Hub Synchronized',
+        description: `Multi-tenant telemetry ingestion active across ${onlineCount} online units.`,
+        severity: 'success',
+      },
+      {
+        id: 'default-absence',
+        event: 'Absence Guard Ready',
+        description: 'Automations scheduler will auto-off loads after confirmed vacancy.',
+        severity: 'warning',
+      },
+    ].slice(0, 2);
+  }, [alerts, onlineCount]);
+
   const handleOpenInspect = (device) => {
     setInspectDevice(device);
     setDrawerOpen(true);
@@ -635,33 +672,38 @@ export default function DeviceManagement() {
             </div>
 
             <div className="space-y-2 flex-1">
-              <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs">
-                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 size={14} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground block text-xs sm:text-sm font-normal">
-                    Radar Hub Synchronized
-                  </span>
-                  <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
-                    Multi-tenant telemetry ingestion active across {onlineCount} online units.
-                  </p>
-                </div>
-              </div>
+              {displayAlerts.slice(0, 2).map((item) => {
+                const sev = item.severity || item.metadata?.severity || 'info';
+                const isCrit = sev === 'critical' || sev === 'error';
+                const isWarn = sev === 'warning';
 
-              <div className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs">
-                <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
-                  <AlertTriangle size={14} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground block text-xs sm:text-sm font-normal">
-                    Absence Guard Ready
-                  </span>
-                  <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug">
-                    Automations scheduler will auto-off loads after confirmed vacancy.
-                  </p>
-                </div>
-              </div>
+                return (
+                  <div
+                    key={item.id || item.event}
+                    className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs"
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                        isCrit
+                          ? 'bg-destructive/10 text-destructive'
+                          : isWarn
+                          ? 'bg-amber-500/10 text-amber-500'
+                          : 'bg-emerald-500/10 text-emerald-500'
+                      }`}
+                    >
+                      {isCrit || isWarn ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-foreground block text-xs sm:text-sm font-normal truncate">
+                        {item.event || item.title || 'Security Notification'}
+                      </span>
+                      <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                        {item.description || item.metadata?.provider || 'BlareX telemetry event recorded.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <Button

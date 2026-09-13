@@ -493,64 +493,43 @@ export default function DeviceManagement() {
         </div>
       </div>
 
-      {/* 2. Mobile Quick Access Bar (Shorter Cards at Top for Immediate Control) */}
+      {/* 2. Mobile Quick Access Bar (Unified Segmented Control Strip) */}
       <div className="sm:hidden pt-0.5">
-        <div className="grid grid-cols-3 gap-2">
-          {/* Sub Card 1: Turn all OFF */}
+        <div className="bg-card border border-border/80 rounded-2xl p-1 flex items-center divide-x divide-border/60 shadow-2xs">
+          {/* Action 1: Turn all OFF */}
           <button
             type="button"
             onClick={handleAllOff}
-            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
           >
-            <div className="w-7 h-7 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center">
-              <Power className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-md bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+              <Power className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <span className="block text-xs font-normal text-foreground truncate">
-                Turn all OFF
-              </span>
-              <span className="block text-[10px] font-normal text-muted-foreground truncate">
-                All Relays
-              </span>
-            </div>
+            <span className="truncate">All OFF</span>
           </button>
 
-          {/* Sub Card 2: All Auto Mode */}
+          {/* Action 2: All Auto Mode */}
           <button
             type="button"
             onClick={handleAllAuto}
-            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
           >
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <span className="block text-xs font-normal text-foreground truncate">
-                All Auto Mode
-              </span>
-              <span className="block text-[10px] font-normal text-muted-foreground truncate">
-                Radar
-              </span>
-            </div>
+            <span className="truncate">Auto</span>
           </button>
 
-          {/* Sub Card 3: Night Routine */}
+          {/* Action 3: Night Routine */}
           <button
             type="button"
             onClick={handleNightRoutine}
-            className="p-2.5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 active:scale-98 transition-all text-left flex flex-col justify-between shadow-2xs h-[78px]"
+            className="flex-1 flex items-center justify-center gap-2 py-2 px-1 text-xs font-normal text-foreground hover:bg-secondary/40 active:scale-95 transition-all rounded-xl min-w-0"
           >
-            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center">
-              <Moon className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-md bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <Moon className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <span className="block text-xs font-normal text-foreground truncate">
-                Night Routine
-              </span>
-              <span className="block text-[10px] font-normal text-muted-foreground truncate">
-                Sleep
-              </span>
-            </div>
+            <span className="truncate">Night</span>
           </button>
         </div>
       </div>

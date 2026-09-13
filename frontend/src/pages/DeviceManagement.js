@@ -40,6 +40,7 @@ import {
 import api from '../api/api';
 import { toast } from 'sonner';
 import DeviceInspectDrawer from '../components/DeviceInspectDrawer';
+import RealQrScanner from '../components/RealQrScanner';
 import deviceImg from '../assets/blarex-device.png';
 
 // Child component for live device card in the 3-column grid
@@ -241,26 +242,19 @@ export default function DeviceManagement() {
     setAddStep(1);
     setAddMethod('qr');
     setSetupCode('');
-    const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
-    setLinkForm({ deviceId: demoId, name: '', deviceType: 'BlareXSense_switch' });
+    setLinkForm({ deviceId: '', name: '', deviceType: 'BlareXSense_switch' });
     setLinkDialogOpen(true);
   };
 
   const handleNextStep = (e) => {
     if (e) e.preventDefault();
     if (addStep === 1) {
-      if (addMethod === 'id' && linkForm.deviceId.startsWith('BX-SENSE-')) {
-        setLinkForm((prev) => ({ ...prev, deviceId: '' }));
-      } else if (addMethod === 'qr' && !linkForm.deviceId) {
-        const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
-        setLinkForm((prev) => ({ ...prev, deviceId: demoId }));
-      }
       setAddStep(2);
       return;
     }
     if (addStep === 2) {
       if (!linkForm.deviceId.trim()) {
-        toast.error('Device ID is required');
+        toast.error(addMethod === 'qr' ? 'Please scan a device QR code or enter Device ID' : 'Device ID is required');
         return;
       }
       if (addMethod === 'id' && setupCode && setupCode.trim().length < 4) {
@@ -782,46 +776,41 @@ export default function DeviceManagement() {
               <div className="space-y-4 pt-1">
                 {addMethod === 'qr' ? (
                   <div className="space-y-3">
-                    <div className="border border-dashed border-primary/40 bg-primary/5 rounded-2xl p-5 text-center flex flex-col items-center justify-center relative overflow-hidden">
-                      <div className="w-32 h-32 rounded-xl bg-card border border-border p-2 flex items-center justify-center relative shadow-sm">
-                        <div className="w-full h-full bg-secondary/30 rounded-lg flex items-center justify-center relative overflow-hidden">
-                          <QrCode className="w-20 h-20 text-foreground/80 opacity-90" />
-                          <div className="absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse" />
-                        </div>
+                    <RealQrScanner
+                      scannedValue={linkForm.deviceId}
+                      onScan={(detectedId) => {
+                        setLinkForm((prev) => ({ ...prev, deviceId: detectedId }));
+                        toast.success(`QR code detected: ${detectedId}`);
+                      }}
+                      onReset={() => {
+                        setLinkForm((prev) => ({ ...prev, deviceId: '' }));
+                      }}
+                    />
+
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="detectedId" className="text-xs font-normal text-muted-foreground">
+                          {linkForm.deviceId ? 'Detected Device ID (Editable if needed)' : 'Or enter Device ID manually'}
+                        </Label>
+                        {!linkForm.deviceId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const testId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+                              setLinkForm((prev) => ({ ...prev, deviceId: testId }));
+                              toast.info(`Simulated QR scan: ${testId}`);
+                            }}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Simulate Demo Scan
+                          </button>
+                        )}
                       </div>
-
-                      <div className="mt-3 text-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-normal">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Device QR Detected
-                        </span>
-                        <div className="text-sm font-mono text-foreground mt-1.5 font-normal tracking-wide">
-                          {linkForm.deviceId || 'BX-SENSE-SCAN'}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newDemoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
-                          setLinkForm((prev) => ({ ...prev, deviceId: newDemoId }));
-                        }}
-                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Generate different test QR
-                      </button>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="detectedId" className="text-xs font-normal text-muted-foreground">
-                        Detected Device ID (Editable if needed)
-                      </Label>
                       <Input
                         id="detectedId"
                         value={linkForm.deviceId}
                         onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
-                        placeholder="BX-SENSE-XXXX"
+                        placeholder="e.g. BX-SENSE-A7F2 or STD-001"
                         className="text-xs sm:text-sm font-normal bg-secondary/30 h-9 sm:h-10 rounded-xl font-mono uppercase"
                       />
                     </div>

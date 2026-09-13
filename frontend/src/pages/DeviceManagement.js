@@ -251,58 +251,40 @@ export default function DeviceManagement() {
   }, []);
 
   const displayAlerts = useMemo(() => {
-    if (alerts && alerts.length > 0) {
-      return alerts.slice(0, 2).map((item) => {
-        const deviceName = item.device_name || item.room || item.device_id || 'Store Room';
-        const isAlert =
-          item.severity === 'critical' ||
-          item.severity === 'warning' ||
-          (item.event && item.event.toLowerCase().includes('presence')) ||
-          (item.event && item.event.toLowerCase().includes('alert'));
-
-        let cleanText = item.description || item.event || 'Presence detected during alert schedule';
-        if (cleanText.includes('telemetry ingestion') || cleanText.includes('Multi-tenant')) {
-          cleanText = 'Presence detected during alert schedule';
-        } else if (cleanText.includes('confirmed vacancy') || cleanText.includes('scheduler')) {
-          cleanText = 'Motion detected in monitored space';
-        }
-
-        let timeStr = 'Today • 12:42 AM';
-        if (item.created_at || item.timestamp) {
-          try {
-            const d = new Date(item.created_at || item.timestamp);
-            timeStr = 'Today • ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-          } catch {
-            timeStr = 'Today • 12:42 AM';
-          }
-        }
-
-        return {
-          id: item.id || Math.random(),
-          device: deviceName,
-          text: cleanText,
-          time: item.time || timeStr,
-          isAlert: isAlert,
-        };
-      });
+    if (!alerts || alerts.length === 0) {
+      return [];
     }
 
-    return [
-      {
-        id: 'alert-store-room',
-        device: 'Store Room',
-        text: 'Presence detected during alert schedule',
-        time: 'Today • 12:42 AM',
-        isAlert: true,
-      },
-      {
-        id: 'alert-living-room',
-        device: 'Living Room',
-        text: 'Presence ended • Space is clear',
-        time: 'Today • 9:18 PM',
-        isAlert: false,
-      },
-    ].slice(0, 2);
+    return alerts.slice(0, 2).map((item) => {
+      const deviceName = item.device_name || item.room || item.device_id || 'Monitored Space';
+      const isAlert =
+        item.severity === 'critical' ||
+        item.severity === 'warning' ||
+        (item.event && item.event.toLowerCase().includes('presence')) ||
+        (item.event && item.event.toLowerCase().includes('alert'));
+
+      const cleanText = item.description || item.event || 'Activity detected';
+
+      let timeStr = 'Recent';
+      if (item.created_at || item.timestamp) {
+        try {
+          const d = new Date(item.created_at || item.timestamp);
+          const isToday = new Date().toDateString() === d.toDateString();
+          const timePart = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          timeStr = (isToday ? 'Today • ' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' • ') + timePart;
+        } catch {
+          timeStr = 'Recent';
+        }
+      }
+
+      return {
+        id: item.id || Math.random(),
+        device: deviceName,
+        text: cleanText,
+        time: item.time || timeStr,
+        isAlert: isAlert,
+      };
+    });
   }, [alerts]);
 
   const handleOpenInspect = (device) => {
@@ -687,31 +669,41 @@ export default function DeviceManagement() {
               </Link>
             </div>
 
-            <div className="divide-y divide-border/40 flex-1">
-              {displayAlerts.slice(0, 2).map((item) => (
-                <div key={item.id} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-3.5">
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold mt-0.5 select-none ${
-                      item.isAlert
-                        ? 'bg-red-500/10 text-red-500'
-                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                    }`}
-                  >
-                    {item.isAlert ? '!' : '◉'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm sm:text-base font-normal text-foreground leading-tight">
-                      {item.device}
-                    </div>
-                    <div className="text-xs font-normal text-muted-foreground mt-1 leading-snug">
-                      {item.text}
-                    </div>
-                    <div className="text-xs font-normal text-muted-foreground/70 mt-0.5">
-                      {item.time}
-                    </div>
-                  </div>
+            <div className="flex-1 flex flex-col justify-center">
+              {displayAlerts.length === 0 ? (
+                <div className="py-4 text-center">
+                  <p className="text-xs font-normal text-muted-foreground">
+                    No active alerts • All monitored spaces are clear
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div className="divide-y divide-border/40">
+                  {displayAlerts.slice(0, 2).map((item) => (
+                    <div key={item.id} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-3.5">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold mt-0.5 select-none ${
+                          item.isAlert
+                            ? 'bg-red-500/10 text-red-500'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        }`}
+                      >
+                        {item.isAlert ? '!' : '◉'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm sm:text-base font-normal text-foreground leading-tight">
+                          {item.device}
+                        </div>
+                        <div className="text-xs font-normal text-muted-foreground mt-1 leading-snug">
+                          {item.text}
+                        </div>
+                        <div className="text-xs font-normal text-muted-foreground/70 mt-0.5">
+                          {item.time}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         </div>

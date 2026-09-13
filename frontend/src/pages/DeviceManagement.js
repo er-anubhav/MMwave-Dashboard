@@ -634,16 +634,16 @@ export default function DeviceManagement() {
               <span className="text-xs sm:text-sm font-normal text-muted-foreground">Global triggers</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={handleAllOff}
-                className="p-3.5 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
               >
-                <span className="block text-sm sm:text-base font-normal text-foreground group-hover:text-primary transition-colors">
+                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
                   Turn all OFF
                 </span>
-                <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-normal">
+                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
                   Switch off all online relays
                 </span>
               </button>
@@ -651,12 +651,12 @@ export default function DeviceManagement() {
               <button
                 type="button"
                 onClick={handleAllAuto}
-                className="p-3.5 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
               >
-                <span className="block text-sm sm:text-base font-normal text-foreground group-hover:text-primary transition-colors">
+                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
                   All Auto Mode
                 </span>
-                <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-normal">
+                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
                   Enforce radar presence automation
                 </span>
               </button>
@@ -664,32 +664,13 @@ export default function DeviceManagement() {
               <button
                 type="button"
                 onClick={handleNightRoutine}
-                className="p-3.5 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
               >
-                <span className="block text-sm sm:text-base font-normal text-foreground group-hover:text-primary transition-colors">
+                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
                   Night Routine
                 </span>
-                <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-normal">
+                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
                   Engage quiet sleep surveillance
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (devices.length > 0) {
-                    handleOpenInspect(devices[0]);
-                  } else {
-                    toast.info('Link a device first to calibrate');
-                  }
-                }}
-                className="p-3.5 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
-              >
-                <span className="block text-sm sm:text-base font-normal text-foreground group-hover:text-primary transition-colors">
-                  Noise Calibration
-                </span>
-                <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1 leading-normal">
-                  Sample 16 gates in active room
                 </span>
               </button>
             </div>

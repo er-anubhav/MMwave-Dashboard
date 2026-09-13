@@ -419,7 +419,7 @@ export default function DeviceManagement() {
         {/* Hidden on mobile, visible on sm and up */}
         <div className="hidden sm:block">
           <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
-            My Spaces
+            My Devices
           </h1>
         </div>
 
@@ -445,8 +445,8 @@ export default function DeviceManagement() {
               <ChevronDown size={14} className="text-muted-foreground shrink-0 pointer-events-none absolute right-2.5 sm:right-3.5 sm:w-4 sm:h-4" />
             </div>
 
-            {/* View Toggle (Grid / Table) */}
-            <div className="flex items-center bg-secondary/40 border border-border/80 rounded-xl sm:rounded-2xl p-1 h-10 sm:h-12">
+            {/* View Toggle (Grid / Table) - Desktop Only */}
+            <div className="hidden sm:flex items-center bg-secondary/40 border border-border/80 rounded-xl sm:rounded-2xl p-1 h-10 sm:h-12">
               <Button
                 variant="ghost"
                 size="sm"
@@ -580,82 +580,112 @@ export default function DeviceManagement() {
           </div>
         </div>
       ) : (
-        /* Tabular Device View (.tablecard) */
-        <Card className="rounded-2xl border border-border/80 overflow-hidden bg-card shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-normal">
-                  <th className="py-3.5 px-4 font-normal">Device</th>
-                  <th className="py-3.5 px-4 font-normal">Room</th>
-                  <th className="py-3.5 px-4 font-normal">Status</th>
-                  <th className="py-3.5 px-4 font-normal">Mode</th>
-                  <th className="py-3.5 px-4 text-right font-normal">Inspect</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {filteredDevices.map((device) => (
-                  <tr
-                    key={device.device_id}
-                    onClick={() => handleOpenInspect(device)}
-                    className="hover:bg-secondary/30 cursor-pointer transition-colors"
-                  >
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={deviceImg}
-                          alt={device.name}
-                          className="w-8 h-8 rounded-lg object-cover border border-border/60 bg-secondary/30 shrink-0"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = '/blarex-device.png';
-                          }}
-                        />
-                        <span className="font-normal text-foreground">{device.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-muted-foreground font-normal">{device.room || 'Living Room'}</td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-normal text-xs ${
-                          device.status === 'online'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : 'bg-secondary text-muted-foreground'
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            device.status === 'online' ? 'bg-emerald-500' : 'bg-muted-foreground'
-                          }`}
-                        />
-                        {device.status === 'online' ? 'Online' : 'Offline'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="text-xs uppercase bg-secondary px-2.5 py-1 rounded-md text-foreground font-normal">
-                        {device.mode || 'auto'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenInspect(device);
-                        }}
-                        className="h-8 text-xs sm:text-sm font-normal text-primary hover:bg-secondary"
-                      >
-                        Inspect
-                        <ChevronRight size={14} className="ml-1" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Mobile Fallback: Mobile always renders Card Grid */}
+          <div className="sm:hidden grid grid-cols-1 gap-4">
+            {filteredDevices.map((device) => (
+              <PrototypeDeviceCard
+                key={device.device_id}
+                device={device}
+                onInspect={handleOpenInspect}
+                navigate={navigate}
+              />
+            ))}
+
+            {/* "+ Link New Device" Dashed Card */}
+            <div
+              onClick={handleOpenAddDevice}
+              className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[190px] group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Plus size={22} />
+              </div>
+              <span className="text-base font-normal text-foreground mt-2.5 group-hover:text-primary transition-colors">
+                Link New Device
+              </span>
+              <span className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5">
+                Assign sensor to another room
+              </span>
+            </div>
           </div>
-        </Card>
+
+          {/* Tabular Device View (.tablecard) - Desktop Only */}
+          <Card className="hidden sm:block rounded-2xl border border-border/80 overflow-hidden bg-card shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-normal">
+                    <th className="py-3.5 px-4 font-normal">Device</th>
+                    <th className="py-3.5 px-4 font-normal">Room</th>
+                    <th className="py-3.5 px-4 font-normal">Status</th>
+                    <th className="py-3.5 px-4 font-normal">Mode</th>
+                    <th className="py-3.5 px-4 text-right font-normal">Inspect</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {filteredDevices.map((device) => (
+                    <tr
+                      key={device.device_id}
+                      onClick={() => handleOpenInspect(device)}
+                      className="hover:bg-secondary/30 cursor-pointer transition-colors"
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={deviceImg}
+                            alt={device.name}
+                            className="w-8 h-8 rounded-lg object-cover border border-border/60 bg-secondary/30 shrink-0"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = '/blarex-device.png';
+                            }}
+                          />
+                          <span className="font-normal text-foreground">{device.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-muted-foreground font-normal">{device.room || 'Living Room'}</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-normal text-xs ${
+                            device.status === 'online'
+                              ? 'bg-emerald-500/10 text-emerald-500'
+                              : 'bg-secondary text-muted-foreground'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              device.status === 'online' ? 'bg-emerald-500' : 'bg-muted-foreground'
+                            }`}
+                          />
+                          {device.status === 'online' ? 'Online' : 'Offline'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-xs uppercase bg-secondary px-2.5 py-1 rounded-md text-foreground font-normal">
+                          {device.mode || 'auto'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenInspect(device);
+                          }}
+                          className="h-8 text-xs sm:text-sm font-normal text-primary hover:bg-secondary"
+                        >
+                          Inspect
+                          <ChevronRight size={14} className="ml-1" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
 
       {/* 5. Quick Actions Sub-Cards (Compact in Width) & Latest Alert */}

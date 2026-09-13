@@ -1,52 +1,53 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useDevice } from '../contexts/DeviceContext';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent } from '../components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
-import EmptyState from '../components/ui/EmptyState';
-import PageHeader from '../components/ui/PageHeader';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
 import {
   Plus,
-  AlertCircle,
-  Link as LinkIcon,
-  Copy,
-  ExternalLink,
+  Radio,
   Sliders,
-  Moon,
-  ShieldCheck,
-  Bot,
   Power,
-  Info
+  LayoutGrid,
+  List,
+  Sparkles,
+  Moon,
+  ShieldAlert,
+  Bell,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronRight,
+  ExternalLink,
+  Bot
 } from 'lucide-react';
-import api from "../api/api";
+import api from '../api/api';
 import { toast } from 'sonner';
+import DeviceInspectDrawer from '../components/DeviceInspectDrawer';
 
-// Child component for each device card with live telemetry & switch toggle
-function ConsumerDeviceCard({ device, navigate, handleChangeMode }) {
-  const isPro = device.device_id?.toUpperCase().startsWith("PRO");
+// Child component for live device card in the 3-column grid
+function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) {
   const [data, setData] = useState(null);
   const [togglingRelay, setTogglingRelay] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const fetchLiveData = async () => {
       try {
-        const res = await api.get(`/data`, { params: { device_id: device.device_id } });
-        if (mounted) setData(res.data);
+        const res = await api.get('/data', { params: { device_id: device.device_id } });
+        if (mounted && res.data) setData(res.data);
       } catch (err) {
-        // silent fail on poller
+        // silent polling catch
       }
     };
 
@@ -60,215 +61,108 @@ function ConsumerDeviceCard({ device, navigate, handleChangeMode }) {
 
   const relayState = data?.relay ?? false;
   const isOccupied = data?.sensor_data?.presence ?? false;
-  const isOnline = device.status === "online";
+  const isOnline = device.status === 'online';
+  const mode = data?.mode || device.mode || 'auto';
 
   const toggleRelay = async (checked) => {
-    const nextState = typeof checked === "boolean" ? checked : !relayState;
     setTogglingRelay(true);
-    // Optimistic local state update to prevent switch UI jitter
-    setData((prev) => prev ? { ...prev, relay: nextState } : prev);
+    setData((prev) => (prev ? { ...prev, relay: checked } : prev));
     try {
-      await api.post(`/relay`, {
+      await api.post('/relay', {
         device_id: device.device_id,
-        relay: nextState,
-        relay_mode: "manual",
+        relay: checked,
+        relay_mode: 'manual',
       });
-      toast.success(`${device.name} switch turned ${nextState ? "ON" : "OFF"}`);
+      toast.success(`${device.name} load turned ${checked ? 'ON' : 'OFF'}`);
     } catch (err) {
-      // Revert on error
-      setData((prev) => prev ? { ...prev, relay: relayState } : prev);
-      toast.error("Failed to update switch");
+      setData((prev) => (prev ? { ...prev, relay: !checked } : prev));
+      toast.error('Failed to toggle switch');
     } finally {
       setTogglingRelay(false);
     }
   };
 
-  const copyApiKey = (key, e) => {
-    e.stopPropagation();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(key).then(() => toast.success('API key copied'));
-    }
-  };
-
   return (
     <Card
-      onClick={() => navigate(`/devices/${device.device_id}`)}
-      className="group relative border border-border/80 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl p-5 flex flex-col justify-between min-h-[160px]"
+      onClick={() => onInspect(device)}
+      className="group relative border border-border/80 bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer rounded-2xl p-4.5 flex flex-col justify-between min-h-[175px] select-none"
     >
-      {/* Top Row: Room Name, Status, and Controls */}
+      {/* Top Row: Mini Device Icon, Title, Room, and Quick Inspect */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span
-              className={`h-2 w-2 rounded-full shrink-0 ${
-                isOnline ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-muted-foreground/40"
-              }`}
-            />
-            <h3 className="text-base sm:text-lg font-normal text-foreground truncate group-hover:text-primary transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-secondary/80 border border-border/80 flex items-center justify-center text-primary shrink-0 transition-transform group-hover:scale-105">
+            <Radio size={22} className={isOnline ? 'text-primary' : 'text-muted-foreground'} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
               {device.name}
             </h3>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {device.room || 'Living Room'}
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 pl-4">
-            {isOnline ? "Online & Monitoring" : "Offline"}
-          </p>
         </div>
 
-        {/* Action Controls: Switch & Info */}
-        <div
-          className="flex items-center gap-2 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div
-            className="flex items-center gap-2 bg-secondary/40 hover:bg-secondary/70 px-2.5 py-1.5 rounded-full border border-border/60 transition-colors"
-            title="Controls connected light/appliance. Radar runs 24/7."
-          >
-            <span className="text-[11px] text-muted-foreground">Appliance</span>
-            <Switch
-              checked={relayState}
-              disabled={togglingRelay}
-              onCheckedChange={toggleRelay}
-              aria-label={`Toggle appliance switch for ${device.name}`}
-            />
-          </div>
-
-          <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                title="Device info"
-                className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{device.name} - Technical Info</DialogTitle>
-                <DialogDescription>
-                  Hardware and connectivity details for this device.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2.5 py-3 text-xs sm:text-sm font-normal">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <span className={isOnline ? "text-success font-medium" : "text-muted-foreground"}>
-                    {isOnline ? "Online" : "Offline"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Device ID:</span>
-                  <span className="font-mono text-xs text-foreground">{device.device_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Linked:</span>
-                  <span className="text-foreground">
-                    {new Date(device.linked_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Last Seen:</span>
-                  <span className="text-foreground">
-                    {device.last_seen ? new Date(device.last_seen).toLocaleString() : "Never"}
-                  </span>
-                </div>
-                {device.api_key && (
-                  <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2 mt-2">
-                    <span className="text-muted-foreground">API Key:</span>
-                    <button
-                      onClick={(e) => copyApiKey(device.api_key, e)}
-                      className="flex items-center gap-1 text-primary hover:underline text-xs"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copy Key
-                    </button>
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* Middle: Subtle Status line without heavy boxes */}
-      <div className="flex items-center gap-2 my-4 text-xs text-muted-foreground flex-wrap">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/50 text-foreground font-normal border border-border/50">
-          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-          {data?.mode === "sleep" ? "Sleep Tracking" : "Fall Guard Active"}
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/50 text-foreground font-normal border border-border/50">
+        {/* Status Dot & Inspect Arrow */}
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              data?.sensor_data?.presence ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50"
+            className={`w-2 h-2 rounded-full ${
+              isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-muted-foreground/40'
             }`}
+            title={isOnline ? 'Device online' : 'Device offline'}
           />
-          {data?.sensor_data?.presence ? "Occupied" : "Vacant"}
-        </span>
-      </div>
-
-      {/* Bottom Footer: Quick actions without clunky stacked buttons */}
-      <div
-        className="flex items-center justify-between pt-2 border-t border-border/40 text-xs"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2">
-          {isPro && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1 px-1.5 rounded hover:bg-secondary transition-colors"
-                >
-                  <Sliders className="h-3 w-3 text-primary" />
-                  <span>{data?.mode === "sleep" ? "Sleep" : "Fall"} Mode</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 p-1.5">
-                <DropdownMenuItem
-                  className="text-xs flex flex-col items-start gap-0.5 cursor-pointer font-normal p-2 rounded"
-                  onClick={() => handleChangeMode(device, "fall")}
-                >
-                  <div className="flex items-center gap-1.5 text-foreground font-medium">
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                    Fall Detection Mode
-                  </div>
-                  <span className="text-[11px] text-muted-foreground pl-5">
-                    Whole-room radar floor & fall monitoring
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-xs flex flex-col items-start gap-0.5 cursor-pointer font-normal p-2 rounded mt-1"
-                  onClick={() => handleChangeMode(device, "sleep")}
-                >
-                  <div className="flex items-center gap-1.5 text-foreground font-medium">
-                    <Moon className="h-3.5 w-3.5 text-primary" />
-                    Sleep Tracking Mode
-                  </div>
-                  <span className="text-[11px] text-muted-foreground pl-5">
-                    In-bed vitals, respiration & sleep phases
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
           <button
             type="button"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1 px-1.5 rounded hover:bg-secondary transition-colors"
-            onClick={() => navigate(`/devices/${device.device_id}/automations`)}
+            onClick={() => onInspect(device)}
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Inspect device controls"
           >
-            <Bot className="h-3 w-3 text-primary" />
-            <span>Automations</span>
+            <ChevronRight size={16} />
           </button>
         </div>
+      </div>
 
-        <button
-          type="button"
-          onClick={() => navigate(`/devices/${device.device_id}`)}
-          className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline py-1 px-1.5 rounded hover:bg-secondary/50 transition-colors"
-        >
-          <span>View Room</span>
-          <ExternalLink className="h-3 w-3" />
-        </button>
+      {/* Presence Status Banner (matches prototype .presence layout) */}
+      <div
+        className={`my-3 px-3 py-2 rounded-xl border text-xs font-medium flex items-center justify-between transition-all ${
+          isOccupied
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            : 'bg-secondary/40 border-border/70 text-muted-foreground'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isOccupied ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'
+            }`}
+          />
+          <span className="font-semibold">{isOccupied ? 'Occupied (Present)' : 'Vacant (Away)'}</span>
+        </div>
+        <span className="text-[11px] opacity-80">
+          {data?.sensor_data?.activity ? `Act: ${data.sensor_data.activity}` : 'Idle'}
+        </span>
+      </div>
+
+      {/* Card Footer: Operating Mode Badge + Relay Switch */}
+      <div
+        className="flex items-center justify-between pt-1 border-t border-border/50 text-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="font-mono text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full bg-secondary/80 text-secondary-foreground border border-border/60">
+          {mode}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">
+            {relayState ? 'ON' : 'OFF'}
+          </span>
+          <Switch
+            checked={relayState}
+            disabled={togglingRelay}
+            onCheckedChange={toggleRelay}
+            className="data-[state=checked]:bg-primary"
+          />
+        </div>
       </div>
     </Card>
   );
@@ -276,32 +170,52 @@ function ConsumerDeviceCard({ device, navigate, handleChangeMode }) {
 
 export default function DeviceManagement() {
   const navigate = useNavigate();
-  const { setHeaderProps } = useOutletContext();
+  const context = useOutletContext() || {};
+  const setHeaderProps = context.setHeaderProps;
+  const selectedSpace = context.selectedSpace || 'All Spaces';
+
   useEffect(() => {
-    setHeaderProps({ title: "Devices" });
+    if (setHeaderProps) {
+      setHeaderProps({ title: 'My Spaces' });
+    }
   }, [setHeaderProps]);
 
   const { devices, linkDevice } = useDevice();
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkForm, setLinkForm] = useState({ deviceId: '', name: '', deviceType: 'BlareXSense_switch' });
+  const [inspectDevice, setInspectDevice] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
-  const ROOM_SUGGESTIONS = ["Living Room", "Master Bedroom", "Kids Room", "Kitchen", "Office"];
+  const ROOM_SUGGESTIONS = ['Living Room', 'Master Bedroom', 'Kids Room', 'Kitchen', 'Office'];
+
+  // Filter devices by selected space if specified
+  const filteredDevices = useMemo(() => {
+    if (!selectedSpace || selectedSpace === 'All Spaces' || selectedSpace === 'Home' || selectedSpace === 'Office') {
+      return devices;
+    }
+    return devices.filter((d) => {
+      const roomStr = (d.room || d.name || '').toLowerCase();
+      return roomStr.includes(selectedSpace.toLowerCase());
+    });
+  }, [devices, selectedSpace]);
+
+  // Status strip aggregates
+  const onlineCount = useMemo(() => devices.filter((d) => d.status === 'online').length, [devices]);
+
+  const handleOpenInspect = (device) => {
+    setInspectDevice(device);
+    setDrawerOpen(true);
+  };
 
   const handleLinkDevice = async (e) => {
     e.preventDefault();
-
-    const result = await linkDevice(
-      linkForm.deviceId,
-      linkForm.name,
-      linkForm.deviceType
-    );
-
+    const result = await linkDevice(linkForm.deviceId, linkForm.name, linkForm.deviceType);
     if (result.success) {
       if (result.apiKey) {
-        toast.success(
-          'Device linked successfully',
-          { description: `Save this API key to configure the device: ${result.apiKey}` }
-        );
+        toast.success('Device linked successfully', {
+          description: `Save this API key: ${result.apiKey}`,
+        });
       } else {
         toast.success('Device linked successfully!');
       }
@@ -312,139 +226,456 @@ export default function DeviceManagement() {
     }
   };
 
-  const handleChangeMode = async (device, newMode) => {
+  const handleAllOff = async () => {
     try {
-      await api.post(`/mode`, {
-        mode: newMode,
-        device_id: device.device_id,
-      });
-      toast.success(
-        `${device.name} switched to ${newMode === "fall" ? "Fall Detection" : "Sleep Monitoring"} mode`
+      const onlineDevices = devices.filter((d) => d.status === 'online');
+      if (!onlineDevices.length) {
+        toast.info('No online devices to switch off');
+        return;
+      }
+      await Promise.all(
+        onlineDevices.map((d) =>
+          api.post('/relay', { device_id: d.device_id, relay: false, relay_mode: 'manual' })
+        )
       );
-    } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to change mode");
+      toast.success('All online loads turned OFF');
+    } catch (err) {
+      toast.error('Failed to execute All OFF command');
     }
   };
 
-  const closeAndResetDialog = () => {
-    setLinkDialogOpen(false);
-    setLinkForm({ deviceId: '', name: '', deviceType: 'BlareXSense_switch' });
+  const handleAllAuto = async () => {
+    try {
+      await Promise.all(
+        devices.map((d) => api.post('/mode', { device_id: d.device_id, mode: 'auto' }))
+      );
+      toast.success('All devices switched to AUTO mode');
+    } catch (err) {
+      toast.error('Failed to update devices to auto mode');
+    }
+  };
+
+  const handleNightRoutine = async () => {
+    try {
+      const bedRooms = devices.filter((d) => /bed|sleep/i.test(d.name || d.room || ''));
+      const targetDevices = bedRooms.length ? bedRooms : devices;
+      await Promise.all(
+        targetDevices.map((d) => api.post('/mode', { device_id: d.device_id, mode: 'sleep' }))
+      );
+      toast.success('Night Routine activated (Sleep Tracking)');
+    } catch (err) {
+      toast.error('Failed to activate Night Routine');
+    }
   };
 
   return (
-    <div className={`flex-1 flex flex-col ${devices.length === 0 ? 'justify-center my-auto py-12' : 'pt-2'}`}>
+    <div className="space-y-6">
+      {/* 1. Headrow: Title, Subtitle, and Top Action Buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            My Spaces
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            See what matters. Everything else stays one tap away.
+          </p>
+        </div>
 
-      {/* Reusable Link Device Dialog */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Link New Room Device</DialogTitle>
-            <DialogDescription>
-              Pair a new radar sensor and assign it to a room or location.
-            </DialogDescription>
-          </DialogHeader>
+        <div className="flex items-center gap-2">
+          {/* View Toggle (Grid / Table) */}
+          <div className="flex items-center bg-secondary/60 border border-border/80 rounded-xl p-0.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className={`h-8 w-8 p-0 rounded-lg ${
+                viewMode === 'grid' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'
+              }`}
+              title="Card Grid View"
+            >
+              <LayoutGrid size={15} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className={`h-8 w-8 p-0 rounded-lg ${
+                viewMode === 'table' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground'
+              }`}
+              title="Table View"
+            >
+              <List size={15} />
+            </Button>
+          </div>
 
-          <form onSubmit={handleLinkDevice}>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="deviceId">Device ID</Label>
-                <Input
-                  id="deviceId"
-                  placeholder="e.g. STD-A8C3 or PRO-B102"
-                  value={linkForm.deviceId}
-                  onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Printed on the bottom sticker of your radar sensor (e.g. STD-XXXX or PRO-XXXX)
-                </p>
+          {/* Add Device Primary Button */}
+          <Button
+            onClick={() => setLinkDialogOpen(true)}
+            className="h-9 px-3.5 rounded-xl font-semibold text-xs bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus size={15} />
+            <span>Add Device</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* 2. Status Strip: KPI Chip Strip (matches prototype .summaryline) */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <span className="inline-flex items-center gap-2 bg-card border border-border/80 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>{onlineCount} online</span>
+        </span>
+
+        <span className="inline-flex items-center gap-2 bg-card border border-border/80 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-primary" />
+          <span>{filteredDevices.length} monitored spaces</span>
+        </span>
+
+        <span className="inline-flex items-center gap-2 bg-card border border-border/80 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span>Smart auto-off active</span>
+        </span>
+      </div>
+
+      {/* 3. Devices Section Title */}
+      <div className="flex items-center justify-between pt-1">
+        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+          <span>Devices</span>
+          <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+            {filteredDevices.length}
+          </span>
+        </h2>
+        <button
+          type="button"
+          onClick={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}
+          className="text-xs font-semibold text-primary hover:underline"
+        >
+          {viewMode === 'grid' ? 'Switch to Table' : 'Switch to Grid'}
+        </button>
+      </div>
+
+      {/* 4. Devices Grid or Table View */}
+      {filteredDevices.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-2xl bg-secondary/10 max-w-md mx-auto my-6">
+          <div className="p-3 rounded-2xl bg-secondary text-primary">
+            <Radio size={32} />
+          </div>
+          <h3 className="text-base font-semibold text-foreground mt-3">No Devices Linked</h3>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+            Connect a BlareXSense mmWave radar unit to observe presence and control appliances.
+          </p>
+          <Button
+            onClick={() => setLinkDialogOpen(true)}
+            className="h-9 px-4 text-xs font-semibold bg-primary text-primary-foreground mt-4 rounded-xl"
+          >
+            <Plus size={15} className="mr-1.5" />
+            Link Device
+          </Button>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredDevices.map((device) => (
+            <PrototypeDeviceCard
+              key={device.device_id}
+              device={device}
+              onInspect={handleOpenInspect}
+              navigate={navigate}
+            />
+          ))}
+
+          {/* "+ Link New Device" Dashed Card */}
+          <div
+            onClick={() => setLinkDialogOpen(true)}
+            className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[175px] group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-secondary text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Plus size={20} />
+            </div>
+            <b className="text-sm font-semibold text-foreground mt-2 group-hover:text-primary transition-colors">
+              Link New Device
+            </b>
+            <span className="text-xs text-muted-foreground mt-0.5">Assign sensor to another room</span>
+          </div>
+        </div>
+      ) : (
+        /* Tabular Device View (.tablecard) */
+        <Card className="rounded-2xl border border-border/80 overflow-hidden bg-card shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-secondary/50 border-b border-border text-muted-foreground font-semibold">
+                  <th className="py-3 px-4">Device</th>
+                  <th className="py-3 px-4">Room</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Mode</th>
+                  <th className="py-3 px-4 text-right">Inspect</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredDevices.map((device) => (
+                  <tr
+                    key={device.device_id}
+                    onClick={() => handleOpenInspect(device)}
+                    className="hover:bg-secondary/30 cursor-pointer transition-colors"
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-primary shrink-0">
+                          <Radio size={16} />
+                        </div>
+                        <span className="font-semibold text-foreground">{device.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">{device.room || 'Living Room'}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium text-[11px] ${
+                          device.status === 'online'
+                            ? 'bg-emerald-500/10 text-emerald-400'
+                            : 'bg-secondary text-muted-foreground'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            device.status === 'online' ? 'bg-emerald-500' : 'bg-muted-foreground'
+                          }`}
+                        />
+                        {device.status === 'online' ? 'Online' : 'Offline'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="font-mono text-[11px] uppercase bg-secondary px-2 py-0.5 rounded-md text-foreground">
+                        {device.mode || 'auto'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenInspect(device);
+                        }}
+                        className="h-7 text-xs text-primary hover:bg-secondary"
+                      >
+                        Inspect
+                        <ChevronRight size={13} className="ml-1" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* 5. Quick Actions Section Split: 1.2fr : 0.8fr (matches prototype .quickrow) */}
+      <div className="pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4">
+          {/* Left Column: Quick Actions Card */}
+          <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground">Quick Actions</h2>
+              <span className="text-xs text-muted-foreground">Global triggers</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={handleAllOff}
+                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary hover:border-primary/30 transition-all text-left group"
+              >
+                <b className="block text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                  Turn all OFF
+                </b>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  Switch off all online relays
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAllAuto}
+                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary hover:border-primary/30 transition-all text-left group"
+              >
+                <b className="block text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                  All Auto Mode
+                </b>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  Enforce radar presence automation
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNightRoutine}
+                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary hover:border-primary/30 transition-all text-left group"
+              >
+                <b className="block text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                  Night Routine
+                </b>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  Engage quiet sleep surveillance
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (devices.length > 0) {
+                    handleOpenInspect(devices[0]);
+                  } else {
+                    toast.info('Link a device first to calibrate');
+                  }
+                }}
+                className="p-3 rounded-xl border border-border/80 bg-secondary/30 hover:bg-secondary hover:border-primary/30 transition-all text-left group"
+              >
+                <b className="block text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                  Noise Calibration
+                </b>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                  Sample 16 gates in active room
+                </span>
+              </button>
+            </div>
+          </Card>
+
+          {/* Right Column: Latest Alerts Feed */}
+          <Card className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-1.5">
+                <Bell size={16} className="text-primary" />
+                <span>Latest Alerts</span>
+              </h2>
+              <Link to="/notifications" className="text-xs font-semibold text-primary hover:underline">
+                History
+              </Link>
+            </div>
+
+            <div className="space-y-2.5 flex-1">
+              <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/60 flex items-start gap-2.5 text-xs">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <b className="text-foreground block text-xs">Radar Hub Synchronized</b>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Multi-tenant telemetry ingestion active across {onlineCount} online units.
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Room / Location</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g. Living Room"
-                  value={linkForm.name}
-                  onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
-                  required
-                />
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[11px] text-muted-foreground">Quick pick:</span>
-                  {ROOM_SUGGESTIONS.map((room) => (
-                    <button
-                      key={room}
-                      type="button"
-                      onClick={() => setLinkForm({ ...linkForm, name: room })}
-                      className="text-[11px] font-normal px-2 py-0.5 rounded-full border border-border bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
-                    >
-                      {room}
-                    </button>
-                  ))}
+              <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/60 flex items-start gap-2.5 text-xs">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertTriangle size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <b className="text-foreground block text-xs">Absence Guard Ready</b>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Automations scheduler will auto-off loads after confirmed vacancy.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={closeAndResetDialog}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/notifications')}
+              className="w-full text-xs font-medium border-border/80 hover:bg-secondary h-8 rounded-xl"
+            >
+              View Full Security & Sensor Logs
+            </Button>
+          </Card>
+        </div>
+      </div>
+
+      {/* Slide-out Inspect Drawer */}
+      <DeviceInspectDrawer
+        device={inspectDevice}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
+
+      {/* Reusable Link Device Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              Link New BlareX Sense Unit
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Pair a new radar sensor and assign it to a room or location.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleLinkDevice} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="deviceId" className="text-xs font-semibold text-foreground">
+                Device ID
+              </Label>
+              <Input
+                id="deviceId"
+                placeholder="e.g. BX-SENSE-A7F2 or STD-001"
+                value={linkForm.deviceId}
+                onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
+                required
+                className="text-xs bg-secondary/40 h-9"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Printed on your radar switch hardware label.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-xs font-semibold text-foreground">
+                Room / Location
+              </Label>
+              <Input
+                id="name"
+                placeholder="e.g. Living Room"
+                value={linkForm.name}
+                onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
+                required
+                className="text-xs bg-secondary/40 h-9"
+              />
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-muted-foreground">Suggestions:</span>
+                {ROOM_SUGGESTIONS.map((room) => (
+                  <button
+                    key={room}
+                    type="button"
+                    onClick={() => setLinkForm({ ...linkForm, name: room })}
+                    className="text-[11px] px-2 py-0.5 rounded-full border border-border/80 bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
+                  >
+                    {room}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="mt-4 pt-2 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLinkDialogOpen(false)}
+                className="text-xs h-9 rounded-xl"
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="bg-primary text-white hover:bg-primary/90">
+              <Button
+                type="submit"
+                size="sm"
+                className="text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-xl"
+              >
                 Link Device
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
-      {devices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-lg max-w-md mx-auto">
-          <div className="p-3 rounded-full bg-secondary text-primary">
-            <LinkIcon className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-normal text-foreground mt-4">No Devices Linked</h3>
-          <p className="text-sm font-normal text-muted-foreground mt-2 max-w-sm">
-            Connect a BlareXSense mmWave radar device to begin monitoring presence, safety, and automations.
-          </p>
-          <div className="mt-6">
-            <Button
-              size="lg"
-              onClick={() => setLinkDialogOpen(true)}
-              className="h-11 px-6 text-base font-normal bg-primary text-white hover:bg-primary/90"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Link Device
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-          {devices.map((device) => (
-            <ConsumerDeviceCard
-              key={device.device_id}
-              device={device}
-              navigate={navigate}
-              handleChangeMode={handleChangeMode}
-            />
-          ))}
-
-          {/* Link New Device Card */}
-          <div
-            onClick={() => setLinkDialogOpen(true)}
-            className="group relative flex cursor-pointer flex-col items-center justify-center border-2 border-dashed border-border/80 bg-secondary/10 p-5 text-center rounded-2xl hover:border-primary/50 hover:bg-secondary/30 transition-all duration-200 min-h-[160px]"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-primary transition-all duration-200 group-hover:bg-primary group-hover:text-white group-hover:scale-105">
-              <Plus className="h-5 w-5" />
-            </div>
-            <h3 className="mt-2.5 text-sm sm:text-base font-normal text-foreground group-hover:text-primary transition-colors">
-              Link New Device
-            </h3>
-            <p className="mt-0.5 text-xs font-normal text-muted-foreground">
-              Add a sensor to another room
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

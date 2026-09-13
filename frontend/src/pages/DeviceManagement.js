@@ -30,11 +30,13 @@ import {
   ChevronRight,
   ExternalLink,
   Bot,
-  MapPin
+  MapPin,
+  MoreHorizontal
 } from 'lucide-react';
 import api from '../api/api';
 import { toast } from 'sonner';
 import DeviceInspectDrawer from '../components/DeviceInspectDrawer';
+import deviceImg from '../assets/blarex-device.png';
 
 // Child component for live device card in the 3-column grid
 function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) {
@@ -86,14 +88,20 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
   return (
     <Card
       onClick={() => onInspect(device)}
-      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl p-5 flex flex-col justify-between min-h-[180px] select-none"
+      className="group relative border border-border/70 bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer rounded-2xl sm:rounded-[22px] p-4.5 sm:p-5 flex flex-col justify-between min-h-[190px] select-none"
     >
-      {/* Top Row: Mini Device Icon, Title, Room, and Quick Inspect */}
+      {/* Top Row: Device Thumbnail, Title, Room, and Kebab Button */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-secondary/60 border border-border/60 flex items-center justify-center text-primary shrink-0 transition-transform group-hover:scale-105">
-            <Radio size={20} className={isOnline ? 'text-primary' : 'text-muted-foreground'} />
-          </div>
+        <div className="flex items-center gap-3.5 min-w-0">
+          <img
+            src={deviceImg}
+            alt={device.name}
+            className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover border border-border/70 bg-secondary/30 shrink-0 transition-transform group-hover:scale-105"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/blarex-device.png';
+            }}
+          />
           <div className="min-w-0">
             <h3 className="text-base sm:text-lg font-normal text-foreground truncate group-hover:text-primary transition-colors">
               {device.name}
@@ -104,66 +112,65 @@ function PrototypeDeviceCard({ device, onInspect, navigate, handleChangeMode }) 
           </div>
         </div>
 
-        {/* Status Dot & Inspect Arrow */}
-        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-muted-foreground/40'
-            }`}
-            title={isOnline ? 'Device online' : 'Device offline'}
-          />
-          <button
-            type="button"
-            onClick={() => onInspect(device)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title="Inspect device controls"
-          >
-            <ChevronRight size={17} />
-          </button>
-        </div>
+        {/* Three dots (kebab) button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onInspect(device);
+          }}
+          className="w-9 h-9 rounded-xl bg-secondary/40 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors shrink-0"
+          title="Device options & settings"
+          aria-label="Device options"
+        >
+          <MoreHorizontal size={18} />
+        </button>
       </div>
 
       {/* Presence Status Banner */}
       <div
-        className={`my-3.5 px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-normal flex items-center justify-between transition-all ${
-          isOccupied
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+        className={`my-3.5 px-4 py-3 rounded-2xl border flex items-center justify-between transition-all ${
+          !isOnline
+            ? 'bg-secondary/20 border-border/40 text-muted-foreground'
+            : isOccupied
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
             : 'bg-secondary/30 border-border/50 text-muted-foreground'
         }`}
       >
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isOccupied ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'
-            }`}
-          />
-          <span>{isOccupied ? 'Occupied (Present)' : 'Vacant (Away)'}</span>
+        <div className="min-w-0 pr-2">
+          <div className={`text-sm font-normal leading-tight ${isOccupied && isOnline ? 'text-emerald-800 dark:text-emerald-300' : 'text-foreground'}`}>
+            {!isOnline ? 'Offline' : isOccupied ? 'Person present' : 'No presence'}
+          </div>
+          <div className={`text-xs mt-1 leading-none ${isOccupied && isOnline ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-muted-foreground'}`}>
+            {!isOnline ? 'Last state unavailable' : isOccupied ? 'Live presence detected' : 'Space is clear'}
+          </div>
         </div>
-        <span className="text-xs font-normal text-muted-foreground">
-          {data?.sensor_data?.activity ? `Act: ${data.sensor_data.activity}` : 'Idle'}
-        </span>
+        <span
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+            !isOnline
+              ? 'bg-muted-foreground/30'
+              : isOccupied
+              ? 'bg-emerald-500 animate-pulse'
+              : 'bg-muted-foreground/40'
+          }`}
+        />
       </div>
 
-      {/* Card Footer: Operating Mode Badge + Relay Switch */}
+      {/* Card Footer: Operating Mode Badge + Clean Switch Toggle */}
       <div
-        className="flex items-center justify-between pt-2 border-t border-border/50 text-xs sm:text-sm"
+        className="flex items-center justify-between pt-1 text-xs sm:text-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="font-normal text-xs uppercase px-2.5 py-1 rounded-lg bg-secondary text-secondary-foreground border border-border/40">
-          {mode}
+        <span className="text-xs font-normal capitalize px-3 py-1.5 rounded-xl bg-secondary/60 text-secondary-foreground border border-border/50 select-none">
+          {mode} mode
         </span>
 
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs sm:text-sm font-normal text-muted-foreground">
-            {relayState ? 'ON' : 'OFF'}
-          </span>
-          <Switch
-            checked={relayState}
-            disabled={togglingRelay}
-            onCheckedChange={toggleRelay}
-            className="data-[state=checked]:bg-primary"
-          />
-        </div>
+        <Switch
+          checked={relayState}
+          disabled={togglingRelay || !isOnline}
+          onCheckedChange={toggleRelay}
+          className="data-[state=checked]:bg-primary"
+        />
       </div>
     </Card>
   );
@@ -411,12 +418,12 @@ export default function DeviceManagement() {
           {/* "+ Link New Device" Dashed Card */}
           <div
             onClick={() => setLinkDialogOpen(true)}
-            className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[180px] group"
+            className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl sm:rounded-[22px] p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[190px] group"
           >
-            <div className="w-11 h-11 rounded-xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
               <Plus size={22} />
             </div>
-            <span className="text-base font-normal text-foreground mt-2 group-hover:text-primary transition-colors">
+            <span className="text-base font-normal text-foreground mt-2.5 group-hover:text-primary transition-colors">
               Link New Device
             </span>
             <span className="text-xs sm:text-sm font-normal text-muted-foreground mt-0.5">
@@ -447,9 +454,15 @@ export default function DeviceManagement() {
                   >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-secondary/80 flex items-center justify-center text-primary shrink-0">
-                          <Radio size={16} />
-                        </div>
+                        <img
+                          src={deviceImg}
+                          alt={device.name}
+                          className="w-8 h-8 rounded-lg object-cover border border-border/60 bg-secondary/30 shrink-0"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/blarex-device.png';
+                          }}
+                        />
                         <span className="font-normal text-foreground">{device.name}</span>
                       </div>
                     </td>

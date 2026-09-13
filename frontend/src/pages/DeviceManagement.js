@@ -35,7 +35,8 @@ import {
   QrCode,
   KeyRound,
   ScanLine,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from 'lucide-react';
 import api from '../api/api';
 import { toast } from 'sonner';
@@ -417,56 +418,57 @@ export default function DeviceManagement() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {/* Space / Room Filter */}
-          <div className="flex items-center gap-2 bg-card border border-border/80 rounded-xl px-3 h-10 text-sm font-normal text-foreground">
-            <MapPin size={15} className="text-primary shrink-0" />
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap">
+          {/* Space / Room Filter (Enlarged) */}
+          <div className="relative flex items-center gap-2.5 bg-card border border-border/80 rounded-2xl px-3.5 sm:px-4 h-11 sm:h-12 text-sm sm:text-base font-normal text-foreground min-w-[170px] sm:min-w-[210px] shadow-2xs hover:border-primary/50 transition-colors">
+            <MapPin size={18} className="text-primary shrink-0" />
             <select
               value={localSpace}
               onChange={(e) => setLocalSpace(e.target.value)}
-              className="bg-transparent border-0 font-normal text-foreground text-sm focus:outline-none cursor-pointer pr-1"
+              className="bg-transparent border-0 font-normal text-foreground text-sm sm:text-base focus:outline-none cursor-pointer w-full appearance-none pr-6 py-1"
               aria-label="Filter by space"
             >
               {availableRooms.map((room) => (
-                <option key={room} value={room} className="bg-card text-foreground">
+                <option key={room} value={room} className="bg-card text-foreground py-1">
                   {room}
                 </option>
               ))}
             </select>
+            <ChevronDown size={16} className="text-muted-foreground shrink-0 pointer-events-none absolute right-3.5" />
           </div>
 
           {/* View Toggle (Grid / Table) */}
-          <div className="flex items-center bg-secondary/40 border border-border/80 rounded-xl p-1 h-10">
+          <div className="flex items-center bg-secondary/40 border border-border/80 rounded-2xl p-1 h-11 sm:h-12">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setViewMode('grid')}
-              className={`h-8 w-8 p-0 rounded-lg ${
+              className={`h-9 w-9 p-0 rounded-xl ${
                 viewMode === 'grid' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
               title="Card Grid View"
             >
-              <LayoutGrid size={16} />
+              <LayoutGrid size={18} />
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setViewMode('table')}
-              className={`h-8 w-8 p-0 rounded-lg ${
+              className={`h-9 w-9 p-0 rounded-xl ${
                 viewMode === 'table' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
               }`}
               title="Table View"
             >
-              <List size={16} />
+              <List size={18} />
             </Button>
           </div>
 
           {/* Add Device Primary Button */}
           <Button
             onClick={handleOpenAddDevice}
-            className="h-10 px-4 rounded-xl font-normal text-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-xs transition-all"
+            className="h-11 sm:h-12 px-5 rounded-2xl font-normal text-sm sm:text-base bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-xs transition-all"
           >
-            <Plus size={16} />
+            <Plus size={18} />
             <span>Add Device</span>
           </Button>
         </div>
@@ -614,9 +616,6 @@ export default function DeviceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg sm:text-xl font-normal text-foreground tracking-tight">Quick Actions</h2>
-                <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1">
-                  One-tap controls for online relays and presence automation
-                </p>
               </div>
               <span className="text-xs font-normal px-3 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40">
                 Global Controls

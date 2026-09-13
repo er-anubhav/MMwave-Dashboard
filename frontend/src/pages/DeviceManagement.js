@@ -377,13 +377,6 @@ export default function DeviceManagement() {
             {filteredDevices.length}
           </span>
         </h2>
-        <button
-          type="button"
-          onClick={() => setViewMode(viewMode === 'grid' ? 'table' : 'grid')}
-          className="text-sm font-normal text-primary hover:underline transition-colors"
-        >
-          {viewMode === 'grid' ? 'Switch to Table' : 'Switch to Grid'}
-        </button>
       </div>
 
       {/* 4. Devices Grid or Table View */}

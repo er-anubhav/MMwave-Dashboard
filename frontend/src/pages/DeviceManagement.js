@@ -421,16 +421,6 @@ export default function DeviceManagement() {
           <h1 className="text-2xl sm:text-3xl font-normal tracking-tight text-foreground">
             My Spaces
           </h1>
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                onlineCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50'
-              }`}
-            />
-            <span>
-              <span className="text-foreground font-normal">{onlineCount}</span> of {devices.length} {devices.length === 1 ? 'sensor' : 'sensors'} online
-            </span>
-          </div>
         </div>
 
         {/* Top Controls Toolbar: on mobile distributes Add Device to right, rest to left */}

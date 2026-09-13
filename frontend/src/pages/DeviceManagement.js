@@ -606,54 +606,76 @@ export default function DeviceManagement() {
         </Card>
       )}
 
-      {/* 5. Quick Actions Section Split: 1.2fr : 0.8fr */}
+      {/* 5. Quick Actions Section Split: 1.85fr : 0.95fr */}
       <div className="pt-2">
-        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-4 sm:gap-5">
-          {/* Left Column: Quick Actions Card */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.85fr_0.95fr] gap-4 sm:gap-6">
+          {/* Left Column: Quick Actions Card (Enlarged) */}
+          <Card className="rounded-2xl border border-border/70 bg-card p-6 sm:p-7 shadow-xs space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-normal text-foreground">Quick Actions</h2>
-              <span className="text-xs sm:text-sm font-normal text-muted-foreground">Global triggers</span>
+              <div>
+                <h2 className="text-lg sm:text-xl font-normal text-foreground tracking-tight">Quick Actions</h2>
+                <p className="text-xs sm:text-sm font-normal text-muted-foreground mt-1">
+                  One-tap controls for online relays and presence automation
+                </p>
+              </div>
+              <span className="text-xs font-normal px-3 py-1 rounded-full bg-secondary/60 text-muted-foreground border border-border/40">
+                Global Controls
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-5">
               <button
                 type="button"
                 onClick={handleAllOff}
-                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-destructive/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
               >
-                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
-                  Turn all OFF
-                </span>
-                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
-                  Switch off all online relays
-                </span>
+                <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+                  <Power className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-destructive transition-colors">
+                    Turn all OFF
+                  </span>
+                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                    Switch off all online relays instantly
+                  </span>
+                </div>
               </button>
 
               <button
                 type="button"
                 onClick={handleAllAuto}
-                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
               >
-                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
-                  All Auto Mode
-                </span>
-                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
-                  Enforce radar presence automation
-                </span>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-primary transition-colors">
+                    All Auto Mode
+                  </span>
+                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                    Enforce radar presence automation
+                  </span>
+                </div>
               </button>
 
               <button
                 type="button"
                 onClick={handleNightRoutine}
-                className="p-3 rounded-xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-primary/30 transition-all text-left group"
+                className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-secondary/20 hover:bg-secondary/50 hover:border-indigo-500/40 transition-all text-left group flex flex-col justify-between min-h-[160px] sm:min-h-[175px]"
               >
-                <span className="block text-sm font-normal text-foreground group-hover:text-primary transition-colors">
-                  Night Routine
-                </span>
-                <span className="block text-xs font-normal text-muted-foreground mt-1 leading-normal">
-                  Engage quiet sleep surveillance
-                </span>
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
+                  <Moon className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="block text-base sm:text-lg font-normal text-foreground group-hover:text-indigo-500 transition-colors">
+                    Night Routine
+                  </span>
+                  <span className="block text-xs sm:text-sm font-normal text-muted-foreground mt-1.5 leading-relaxed">
+                    Engage quiet sleep surveillance
+                  </span>
+                </div>
               </button>
             </div>
           </Card>

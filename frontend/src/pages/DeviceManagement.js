@@ -233,14 +233,14 @@ export default function DeviceManagement() {
   // Status strip aggregates
   const onlineCount = useMemo(() => devices.filter((d) => d.status === 'online').length, [devices]);
 
-  // Fetch alerts and strictly restrict to top 2
+  // Fetch alerts and format as consumer-friendly events (strictly top 2)
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
     let mounted = true;
     api.get('/notifications/history')
       .then((res) => {
-        if (mounted && res.data?.notifications) {
+        if (mounted && res.data?.notifications && res.data.notifications.length > 0) {
           setAlerts(res.data.notifications.slice(0, 2));
         }
       })
@@ -252,23 +252,58 @@ export default function DeviceManagement() {
 
   const displayAlerts = useMemo(() => {
     if (alerts && alerts.length > 0) {
-      return alerts.slice(0, 2);
+      return alerts.slice(0, 2).map((item) => {
+        const deviceName = item.device_name || item.room || item.device_id || 'Store Room';
+        const isAlert =
+          item.severity === 'critical' ||
+          item.severity === 'warning' ||
+          (item.event && item.event.toLowerCase().includes('presence')) ||
+          (item.event && item.event.toLowerCase().includes('alert'));
+
+        let cleanText = item.description || item.event || 'Presence detected during alert schedule';
+        if (cleanText.includes('telemetry ingestion') || cleanText.includes('Multi-tenant')) {
+          cleanText = 'Presence detected during alert schedule';
+        } else if (cleanText.includes('confirmed vacancy') || cleanText.includes('scheduler')) {
+          cleanText = 'Motion detected in monitored space';
+        }
+
+        let timeStr = 'Today • 12:42 AM';
+        if (item.created_at || item.timestamp) {
+          try {
+            const d = new Date(item.created_at || item.timestamp);
+            timeStr = 'Today • ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          } catch {
+            timeStr = 'Today • 12:42 AM';
+          }
+        }
+
+        return {
+          id: item.id || Math.random(),
+          device: deviceName,
+          text: cleanText,
+          time: item.time || timeStr,
+          isAlert: isAlert,
+        };
+      });
     }
+
     return [
       {
-        id: 'default-sync',
-        event: 'Radar Hub Synchronized',
-        description: `Multi-tenant telemetry ingestion active across ${onlineCount} online units.`,
-        severity: 'success',
+        id: 'alert-store-room',
+        device: 'Store Room',
+        text: 'Presence detected during alert schedule',
+        time: 'Today • 12:42 AM',
+        isAlert: true,
       },
       {
-        id: 'default-absence',
-        event: 'Absence Guard Ready',
-        description: 'Automations scheduler will auto-off loads after confirmed vacancy.',
-        severity: 'warning',
+        id: 'alert-living-room',
+        device: 'Living Room',
+        text: 'Presence ended • Space is clear',
+        time: 'Today • 9:18 PM',
+        isAlert: false,
       },
     ].slice(0, 2);
-  }, [alerts, onlineCount]);
+  }, [alerts]);
 
   const handleOpenInspect = (device) => {
     setInspectDevice(device);
@@ -660,60 +695,43 @@ export default function DeviceManagement() {
             </div>
           </Card>
 
-          {/* Right Column: Latest Alerts Feed */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="text-sm sm:text-base font-normal text-foreground flex items-center gap-2">
-                <span>Latest Alerts</span>
+          {/* Right Column: Latest Alert Feed */}
+          <Card className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-2">
+            <div className="flex items-center justify-between pb-1 border-b border-border/30">
+              <h2 className="text-base font-normal text-foreground">
+                Latest alert
               </h2>
-              <Link to="/notifications" className="text-xs font-normal text-primary hover:underline">
+              <Link to="/notifications" className="text-xs sm:text-sm font-normal text-primary hover:underline">
                 History
               </Link>
             </div>
 
-            <div className="space-y-2 flex-1">
-              {displayAlerts.slice(0, 2).map((item) => {
-                const sev = item.severity || item.metadata?.severity || 'info';
-                const isCrit = sev === 'critical' || sev === 'error';
-                const isWarn = sev === 'warning';
-
-                return (
+            <div className="divide-y divide-border/40 flex-1">
+              {displayAlerts.slice(0, 2).map((item) => (
+                <div key={item.id} className="py-2.5 first:pt-1 last:pb-1 flex items-start gap-3.5">
                   <div
-                    key={item.id || item.event}
-                    className="p-2.5 rounded-xl bg-secondary/20 border border-border/50 flex items-start gap-2.5 text-xs"
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold mt-0.5 select-none ${
+                      item.isAlert
+                        ? 'bg-red-500/10 text-red-500'
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    }`}
                   >
-                    <div
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                        isCrit
-                          ? 'bg-destructive/10 text-destructive'
-                          : isWarn
-                          ? 'bg-amber-500/10 text-amber-500'
-                          : 'bg-emerald-500/10 text-emerald-500'
-                      }`}
-                    >
-                      {isCrit || isWarn ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+                    {item.isAlert ? '!' : '◉'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm sm:text-base font-normal text-foreground leading-tight">
+                      {item.device}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-foreground block text-xs sm:text-sm font-normal truncate">
-                        {item.event || item.title || 'Security Notification'}
-                      </span>
-                      <p className="text-xs font-normal text-muted-foreground mt-0.5 leading-snug line-clamp-2">
-                        {item.description || item.metadata?.provider || 'BlareX telemetry event recorded.'}
-                      </p>
+                    <div className="text-xs font-normal text-muted-foreground mt-1 leading-snug">
+                      {item.text}
+                    </div>
+                    <div className="text-xs font-normal text-muted-foreground/70 mt-0.5">
+                      {item.time}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/notifications')}
-              className="w-full text-xs font-normal border-border/70 hover:bg-secondary/40 h-8 rounded-xl text-muted-foreground hover:text-foreground transition-colors"
-            >
-              View Full Security & Sensor Logs
-            </Button>
           </Card>
         </div>
       </div>

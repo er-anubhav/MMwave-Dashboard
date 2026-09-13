@@ -608,14 +608,14 @@ export default function DeviceManagement() {
         </Card>
       )}
 
-      {/* 5. Quick Actions Sub-Cards & Latest Alert */}
+      {/* 5. Quick Actions Sub-Cards (Compact in Width) & Latest Alert */}
       <div className="pt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {/* Sub Card 1: Turn all OFF */}
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch gap-4 sm:gap-5">
+          {/* Sub Card 1: Turn all OFF (Compact Width) */}
           <button
             type="button"
             onClick={handleAllOff}
-            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-destructive/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Power className="w-6 h-6" />
@@ -630,11 +630,11 @@ export default function DeviceManagement() {
             </div>
           </button>
 
-          {/* Sub Card 2: All Auto Mode */}
+          {/* Sub Card 2: All Auto Mode (Compact Width) */}
           <button
             type="button"
             onClick={handleAllAuto}
-            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-primary/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Sparkles className="w-6 h-6" />
@@ -649,11 +649,11 @@ export default function DeviceManagement() {
             </div>
           </button>
 
-          {/* Sub Card 3: Night Routine */}
+          {/* Sub Card 3: Night Routine (Compact Width) */}
           <button
             type="button"
             onClick={handleNightRoutine}
-            className="p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
+            className="w-full sm:w-[200px] lg:w-[215px] shrink-0 p-5 rounded-2xl border border-border/70 bg-card hover:bg-secondary/30 hover:border-indigo-500/50 transition-all text-left group flex flex-col justify-between shadow-xs min-h-[160px] sm:min-h-[175px]"
           >
             <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mb-4 transition-transform group-hover:scale-105">
               <Moon className="w-6 h-6" />
@@ -669,7 +669,7 @@ export default function DeviceManagement() {
           </button>
 
           {/* Sub Card 4: Latest Alert Feed */}
-          <Card className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between min-h-[160px] sm:min-h-[175px]">
+          <Card className="flex-1 min-w-[260px] rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between min-h-[160px] sm:min-h-[175px]">
             <div className="flex items-center justify-between pb-2 border-b border-border/30">
               <h2 className="text-base font-normal text-foreground">
                 Latest alert

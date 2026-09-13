@@ -1,40 +1,71 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils';
+import Sparkline from './Sparkline';
 
-export default function StatCard({ title, value, icon, footerLabel, footerValue, footerColor = "text-emerald-600", iconBg = "bg-gray-100 dark:bg-background", iconColor = "text-gray-900 dark:text-primary", isAlert = false, isActive = false }) {
-  const badgeBg = footerColor.includes('emerald') ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' :
-                  footerColor.includes('blue') ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400' :
-                  footerColor.includes('rose') ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400' :
-                  footerColor.includes('indigo') ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' :
-                  'bg-gray-500/10 text-gray-700 dark:text-gray-400';
+const STATUS_DOT = {
+  ok: 'bg-success',
+  warn: 'bg-warning',
+  error: 'bg-destructive',
+  muted: 'bg-muted-foreground/50',
+};
+
+/**
+ * KPI metric card. White surface with semantic accents only:
+ * small tinted icon container, 2px accent hairline, strong tabular value,
+ * status dot + caption, and an optional sparkline fed by real sensor data.
+ */
+export default function StatCard({
+  title,
+  value,
+  icon,
+  iconClassName = 'text-muted-foreground bg-muted/60',
+  accent,
+  footerLabel,
+  footerValue,
+  footerColor = 'text-foreground',
+  status,
+  isAlert = false,
+  isActive = false,
+  sparkline, // { data, color, softColor, emptyLabel }
+  className,
+}) {
+  const statusKey =
+    status ||
+    (isAlert ? 'error' : isActive ? 'ok' : footerColor.includes('destructive') ? 'error' : footerColor.includes('warning') ? 'warn' : 'muted');
 
   return (
-    <motion.div 
-      whileHover={{ y: -4, scale: 1.01 }}
-      transition={{ type: "spring", stiffness: 400, damping: 17 }}
-      className={`relative flex flex-col rounded-2xl p-6 transition-all duration-300 shadow-sm hover:shadow-md glass-card ${
-        isAlert ? 'border-red-200/50 dark:border-red-500/30 ring-1 ring-red-500/10' : ''
-      }`}
-    >
-      <div className="flex items-center justify-between mb-4 z-10">
-        <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${iconBg} ${isActive ? 'ring-2 ring-emerald-500/20' : ''} shadow-sm`}>
-          {icon}
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider ">{title}</p>
-      </div>
-      
-      <div className="flex flex-col z-10">
-        <h4 className="text-xl  tracking-tight mb-4 text-black dark:text-primary">
-          {value}
-        </h4>
-        
-        <div className="flex items-center text-xs">
-          <span className={`mr-2 px-2.5 py-0.5 rounded-lg  ${badgeBg}`}>
-            {footerValue}
+    <div className={cn('relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-5 shadow-surface', className)}>
+      {accent && <span className={cn('absolute inset-x-0 top-0 h-0.5', accent)} aria-hidden="true" />}
+
+      <div className="flex items-start justify-between gap-2">
+        <p className="pt-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+        {icon && (
+          <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md', iconClassName)}>
+            {icon}
           </span>
-          <span className="text-gray-500 dark:text-gray-400 truncate font-medium">{footerLabel}</span>
-        </div>
+        )}
       </div>
-    </motion.div>
+
+      <p className="mt-2 font-numeric text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+
+      <div className="mt-3 flex items-center gap-2">
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT[statusKey])} />
+        <span className={cn('text-xs font-medium', footerColor)}>{footerValue}</span>
+        {footerLabel && <span className="truncate text-xs text-muted-foreground">{footerLabel}</span>}
+      </div>
+
+      {sparkline && (
+        <div className="mt-3 h-9">
+          <Sparkline
+            data={sparkline.data}
+            color={sparkline.color}
+            softColor={sparkline.softColor}
+            height={36}
+            width={220}
+            emptyLabel={sparkline.emptyLabel || 'Waiting for data'}
+          />
+        </div>
+      )}
+    </div>
   );
 }

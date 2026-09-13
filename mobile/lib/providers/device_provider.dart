@@ -228,7 +228,7 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   // --- Device operations ---
-  Future<Map<String, dynamic>> linkDevice(String deviceId, String name, {String deviceType = 'LYFSense_switch'}) async {
+  Future<Map<String, dynamic>> linkDevice(String deviceId, String name, {String deviceType = 'BlareXSense_switch'}) async {
     try {
       final response = await _apiClient.post('/devices/link', body: {
         'device_id': deviceId,

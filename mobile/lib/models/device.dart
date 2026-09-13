@@ -42,7 +42,7 @@ class Device {
       id: json['id'],
       deviceId: json['device_id'] ?? '',
       name: json['name'] ?? '',
-      deviceType: json['device_type'] ?? 'LYFSense_switch',
+      deviceType: json['device_type'] ?? 'BlareXSense_switch',
       userId: json['user_id'],
       desiredMode: json['desired_mode'] ?? json['mode'] ?? 'fall',
       desiredRelay: json['desired_relay'] ?? json['relay'] ?? false,

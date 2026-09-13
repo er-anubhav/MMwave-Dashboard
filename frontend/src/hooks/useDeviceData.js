@@ -11,6 +11,9 @@ export default function useDeviceData(selectedDevice) {
   const [relayMode, setRelayMode] = useState("manual");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  // Rolling buffer of recent samples for sparklines/mini-charts (never fabricated:
+  // only real polled values enter the buffer)
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     if (!selectedDevice) {
@@ -32,6 +35,16 @@ export default function useDeviceData(selectedDevice) {
         setRelayMode(data.relay_mode || "manual");
         setLastUpdated(data.last_updated);
         setIsConnected(true);
+        setHistory((prev) => [
+          ...prev.slice(-59),
+          {
+            t: Date.now(),
+            activity: data.sensor_data?.activity ?? 0,
+            heartRate: data.sensor_data?.sleep?.heart_rate ?? null,
+            respiration: data.sensor_data?.sleep?.respiration ?? null,
+            presence: !!data.sensor_data?.presence,
+          },
+        ]);
       } catch (error) {
         console.error("Error fetching data:", error);
         setIsConnected(false);
@@ -108,5 +121,5 @@ export default function useDeviceData(selectedDevice) {
     }
   }, [selectedDevice, relayState]);
 
-  return { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, handleModeChange, handleRelayToggle, handleRelayModeChange };
+  return { mode, sensorData, relayState, relayMode, lastUpdated, isConnected, history, handleModeChange, handleRelayToggle, handleRelayModeChange };
 }

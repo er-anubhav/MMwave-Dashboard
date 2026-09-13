@@ -2,38 +2,22 @@ import { useEffect, useState } from "react";
 import { useDevice } from "../contexts/DeviceContext";
 import useDeviceData from "../hooks/useDeviceData";
 import StatCard from "../components/ui/StatCard";
-import ChartCard from "../components/ui/ChartCard";
-import ActivityChart from "../components/ActivityChart";
 import SystemLogsTable from "../components/SystemLogsTable";
 import { Card, CardContent } from "../components/ui/card";
+import PageHeader from "../components/ui/PageHeader";
 import { LinkIcon, Plus, User, Shield } from "lucide-react";
 import { Button } from "../components/ui/button";
+import EmptyState from "../components/ui/EmptyState";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { cn } from "../lib/utils";
 import api from "../api/api";
-
-
-
-
-const pageVariants = {
- initial: { opacity: 0, y: 10 },
- in: { opacity: 1, y: 0 },
- out: { opacity: 0, y: -10 }
-};
-
-const pageTransition = {
- type: "tween",
- ease: "anticipate",
- duration: 0.3
-};
 
 export default function SecurityActivity() {
   const { setHeaderProps } = useOutletContext();
- const navigate = useNavigate();
- const { selectedDevice, devices = [] } = useDevice();
- const { mode, sensorData, lastUpdated, isConnected, handleModeChange } = useDeviceData(selectedDevice);
-
+  const navigate = useNavigate();
+  const { selectedDevice, devices = [] } = useDevice();
+  const { mode, sensorData, lastUpdated, isConnected, handleModeChange } = useDeviceData(selectedDevice);
 
   useEffect(() => {
     setHeaderProps({
@@ -44,119 +28,146 @@ export default function SecurityActivity() {
       lastUpdated
     });
   }, [mode, handleModeChange, isConnected, lastUpdated, setHeaderProps]);
- const [logs, setLogs] = useState([]);
 
- useEffect(() => {
- if (!selectedDevice) {
- setLogs([]);
- return;
- }
+  const [logs, setLogs] = useState([]);
 
- const loadLogs = async () => {
- try {
- const response = await api.get(`/logs`, {
- params: { device_id: selectedDevice.device_id, limit: 30 }
- });
- const serverLogs = response.data?.logs || [];
- const normalized = serverLogs.map((log) => ({
- id: log.id,
- event: log.event,
- type: log.log_type || "info",
- time: log.created_at
- ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
- : "just now",
- status: log.status || "Active"
- }));
- setLogs(normalized);
- } catch {
- setLogs([]);
- }
- };
+  useEffect(() => {
+    if (!selectedDevice) {
+      setLogs([]);
+      return;
+    }
 
- loadLogs();
- const interval = setInterval(loadLogs, 10000);
- return () => clearInterval(interval);
- }, [selectedDevice]);
+    const loadLogs = async () => {
+      try {
+        const response = await api.get(`/logs`, {
+          params: { device_id: selectedDevice.device_id, limit: 30 }
+        });
+        const serverLogs = response.data?.logs || [];
+        const normalized = serverLogs.map((log) => ({
+          id: log.id,
+          event: log.event,
+          type: log.log_type || "info",
+          time: log.created_at
+            ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
+            : "just now",
+          status: log.status || "Active"
+        }));
+        setLogs(normalized);
+      } catch {
+        setLogs([]);
+      }
+    };
 
- if (devices.length === 0) {
- return (
- <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- 
- <main className="py-8">
- <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
- <CardContent className="flex flex-col items-center justify-center py-12">
- <LinkIcon className="h-16 w-16 text-gray-300 dark:text-primary mb-4" />
- <h3 className="text-base text-gray-900 dark:text-primary mb-2">No devices linked</h3>
- <Button onClick={() => navigate("/devices")} className="bg-primary dark:text-black hover:bg-primary/90 mt-4">
- <Plus className="h-4 w-4 mr-2" />
- Go to Device Management
- </Button>
- </CardContent>
- </Card>
- </main>
- </motion.div>
- );
- }
+    loadLogs();
+    const interval = setInterval(loadLogs, 10000);
+    return () => clearInterval(interval);
+  }, [selectedDevice]);
 
- if (!selectedDevice) {
- return (
- <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- 
- <main className="py-8">
- <Card className="rounded-xl border border-gray-100 dark:border-border shadow-sm">
- <CardContent className="flex flex-col items-center justify-center py-12">
- <LinkIcon className="h-16 w-16 text-gray-300 dark:text-primary mb-4" />
- <h3 className="text-base text-gray-900 dark:text-primary mb-2">Select a device</h3>
- </CardContent>
- </Card>
- </main>
- </motion.div>
- );
- }
+  const pageHeader = (
+    <PageHeader
+      title="Security & Activity"
+      description="Presence, movement history, and security events for the selected device."
+    />
+  );
 
- return (
- <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="flex flex-col w-full h-full">
- 
+  if (devices.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        {pageHeader}
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<LinkIcon className="h-5 w-5" />}
+              title="No devices linked"
+              description="Link a device to monitor presence, activity, and security events."
+              action={
+                <Button onClick={() => navigate("/devices")}>
+                  <Plus className="h-4 w-4" />
+                  Go to Device Management
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
- <main className="">
- <div className="mb-2 grid gap-2 md:grid-cols-2">
- <StatCard
- title="Presence"
- value={sensorData?.presence ? "Detected" : "None"}
- icon={<User className="w-6 h-6 text-indigo-600" />}
- footerLabel={sensorData?.presence ? (sensorData?.activity ? `Activity score: ${sensorData.activity}` : "Person in room") : "No movement"}
- footerValue={sensorData?.presence ? "Active" : "Clear"}
- footerColor={sensorData?.presence ? "text-emerald-600" : "text-gray-500"}
- iconBg="bg-indigo-50"
- isActive={sensorData?.presence}
- />
- <StatCard
- title="Security Status"
- value={mode === "fall" ? "Armed (Fall Mode)" : "Disarmed"}
- icon={<Shield className="w-6 h-6 text-blue-600" />}
- footerLabel="System monitoring"
- footerValue="Monitoring"
- footerColor="text-blue-600"
- iconBg="bg-blue-50"
- isActive={mode === "fall"}
- />
- </div>
+  if (!selectedDevice) {
+    return (
+      <div className="flex flex-col gap-6">
+        {pageHeader}
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon={<LinkIcon className="h-5 w-5" />}
+              title="Select a device"
+              description="Use the device selector in the header to choose which device to monitor."
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
- <div className="mb-2 grid grid-cols-1">
- <ChartCard
- title="Activity History"
- subtitle="Real-time movement tracking"
- footerText="just updated"
- chartBg="bg-background"
- >
- <ActivityChart currentActivity={sensorData?.activity || 0} />
- </ChartCard>
- </div>
+  const armed = mode === "fall";
 
- <div className="grid grid-cols-1">
- <SystemLogsTable logs={logs} />
- </div>
- </main>
- </motion.div>
- );
+  return (
+    <div className="flex flex-col gap-6">
+      {pageHeader}
+
+      {/* Compact live strip */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-card px-4 py-2.5 shadow-surface-sm">
+        <span className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Monitor</span>
+        <span className="inline-flex items-center gap-1.5 text-xs">
+          <span className={cn("h-1.5 w-1.5 rounded-full", isConnected ? "bg-success animate-pulse-dot" : "bg-muted-foreground/50")} />
+          <span className={cn("font-medium", isConnected ? "text-success" : "text-muted-foreground")}>
+            {isConnected ? "Live" : "Waiting"}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          Presence:{" "}
+          <span className={cn("font-medium", sensorData?.presence ? "text-primary" : "text-foreground")}>
+            {sensorData?.presence ? "Detected" : "Clear"}
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          Updated:{" "}
+          <span className="font-numeric text-foreground">
+            {lastUpdated
+              ? formatDistanceToNow(typeof lastUpdated === "string" ? parseISO(lastUpdated) : new Date(lastUpdated), { addSuffix: true })
+              : "waiting"}
+          </span>
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <StatCard
+          title="Presence"
+          value={sensorData?.presence ? "Detected" : "None"}
+          icon={<User className="h-4 w-4" />}
+          iconClassName="text-primary bg-secondary"
+          accent={sensorData?.presence ? "bg-primary" : undefined}
+          footerLabel={sensorData?.presence ? (sensorData?.activity ? `Activity score ${sensorData.activity}` : "Person in room") : "No movement"}
+          footerValue={sensorData?.presence ? "Active" : "Clear"}
+          footerColor={sensorData?.presence ? "text-primary" : "text-muted-foreground"}
+          isActive={sensorData?.presence}
+        />
+        <StatCard
+          title="Security Status"
+          value={armed ? "Armed" : "Disarmed"}
+          icon={<Shield className="h-4 w-4" />}
+          iconClassName={armed ? "text-success bg-success-soft" : "text-muted-foreground bg-muted/60"}
+          accent={armed ? "bg-success" : undefined}
+          footerLabel="System monitoring"
+          footerValue={armed ? "Fall detection on" : "Fall detection off"}
+          footerColor={armed ? "text-success" : "text-muted-foreground"}
+          isActive={armed}
+        />
+      </div>
+
+      <SystemLogsTable logs={logs} />
+    </div>
+  );
 }
+

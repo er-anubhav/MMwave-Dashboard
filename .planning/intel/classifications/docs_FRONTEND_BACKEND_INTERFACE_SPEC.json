@@ -1,0 +1,13 @@
+{
+  "source_path": "docs/FRONTEND_BACKEND_INTERFACE_SPEC.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Frontend-to-Backend Interface Control Document (ICD)",
+  "summary": "Full REST API specification between React frontend and FastAPI backend including JWT authentication, device control, automations, and retention.",
+  "scope": ["REST API", "Frontend", "Backend", "JWT Auth", "Device Management", "Automations", "Telemetry"],
+  "cross_refs": ["backend/main.py", "frontend/src/api/api.js"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Detailed endpoint schemas, request bodies, and response contracts."
+}

@@ -16,7 +16,7 @@ class DeviceManagementScreen extends StatefulWidget {
 class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
   final _linkIdController = TextEditingController();
   final _linkNameController = TextEditingController();
-  String _selectedDeviceType = 'LYFSense_switch';
+  String _selectedDeviceType = 'BlareXSense_switch';
 
   @override
   void dispose() {
@@ -28,7 +28,7 @@ class _DeviceManagementScreenState extends State<DeviceManagementScreen> {
   void _showLinkDeviceDialog() {
     _linkIdController.clear();
     _linkNameController.clear();
-    _selectedDeviceType = 'LYFSense_switch';
+    _selectedDeviceType = 'BlareXSense_switch';
 
     showDialog(
       context: context,

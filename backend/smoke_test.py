@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lightweight API smoke test for LYFSense backend.
+"""Lightweight API smoke test for BlareXSense backend.
 
 Usage:
   python smoke_test.py
@@ -90,7 +90,7 @@ def main():
         {
             "device_id": device_id,
             "name": "Smoke Test Device",
-            "device_type": "LYFSense_switch",
+            "device_type": "BlareXSense_switch",
         },
         token=token,
     )

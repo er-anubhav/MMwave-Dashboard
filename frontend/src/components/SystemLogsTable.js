@@ -1,87 +1,89 @@
 import React from 'react';
 import { Card } from './ui/card';
-import { CheckCircle2, MoreVertical, Activity, AlertTriangle, Moon, Info } from 'lucide-react';
+import { cn } from '../lib/utils';
+
+const TYPE_STYLES = {
+  alert: { dot: 'bg-destructive', label: 'text-destructive', mark: 'Alert' },
+  warning: { dot: 'bg-warning', label: 'text-warning', mark: 'Warning' },
+  action: { dot: 'bg-success', label: 'text-success', mark: 'Action' },
+  success: { dot: 'bg-success', label: 'text-success', mark: 'Success' },
+  mode: { dot: 'bg-primary', label: 'text-primary', mark: 'Mode' },
+  info: { dot: 'bg-muted-foreground/50', label: 'text-muted-foreground', mark: 'Info' },
+};
 
 export default function SystemLogsTable({ logs = [] }) {
- const getIcon = (type) => {
- switch (type) {
- case 'alert': return <AlertTriangle className="w-4 h-4 text-red-500" />;
- case 'mode': return <Moon className="w-4 h-4 text-purple-500" />;
- case 'action': return <Activity className="w-4 h-4 text-green-500" />;
- case 'info': return <Info className="w-4 h-4 text-blue-500" />;
- default: return <CheckCircle2 className="w-4 h-4 text-gray-500" />;
- }
- };
+  const alertCount = logs.filter((l) => l.type === 'alert').length;
 
- return (
- <Card className="rounded-2xl border-gray-200 dark:border-border shadow-sm overflow-hidden bg-white dark:bg-background h-full">
- <div className="p-6 border-b border-gray-100 dark:border-border flex justify-between items-center">
- <div>
- <h6 className="text-base text-black dark:text-primary">
- System Logs
- </h6>
- <p className="flex items-center gap-1 text-sm text-gray-500 mt-1">
- <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
- <span>All systems nominal</span>
- </p>
- </div>
- <button className="text-gray-400 hover:text-gray-900 dark:text-primary transition-colors p-2 hover:bg-gray-50 dark:bg-background rounded-lg">
- <MoreVertical className="w-5 h-5" />
- </button>
- </div>
- <div className="p-0 overflow-x-auto">
- {logs.length === 0 ? (
- <div className="p-6 text-sm text-gray-500">No system logs yet.</div>
- ) : (
- <table className="w-full min-w-[640px] table-auto text-left">
- <thead>
- <tr>
- <th className="border-b border-gray-100 dark:border-border/50 py-4 px-6">
- <p className="text-sm uppercase text-gray-400">Event</p>
- </th>
- <th className="border-b border-gray-100 dark:border-border/50 py-4 px-6">
- <p className="text-sm uppercase text-gray-400">Time</p>
- </th>
- <th className="border-b border-gray-100 dark:border-border/50 py-4 px-6">
- <p className="text-sm uppercase text-gray-400">Status</p>
- </th>
- </tr>
- </thead>
- <tbody>
- {logs.map((log, key) => {
- const className = `py-4 px-6 ${key === logs.length - 1 ? "" : "border-b border-gray-50"}`;
+  return (
+    <Card className="border-border">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">System Logs</h3>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            {logs.length === 0
+              ? "No system logs yet."
+              : alertCount > 0
+                ? `${alertCount} alert${alertCount > 1 ? "s" : ""} in the recent window`
+                : "All systems nominal"}
+          </p>
+        </div>
+        {logs.length > 0 && (
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            last {logs.length} events
+          </span>
+        )}
+      </div>
 
- return (
- <tr key={log.id} className="hover:bg-white dark:bg-background/50 transition-colors group">
- <td className={className}>
- <div className="flex items-center gap-4">
- <div className="rounded-xl p-2.5 bg-white dark:bg-background shadow-sm border border-gray-100 dark:border-border group-hover:scale-110 transition-transform">
- {getIcon(log.type)}
- </div>
- <p className="text-sm text-black dark:text-primary">
- {log.event}
- </p>
- </div>
- </td>
- <td className={className}>
- <p className="text-sm text-gray-500">
- {log.time}
- </p>
- </td>
- <td className={className}>
- <div className="w-full">
- <p className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm bg-gray-100 dark:bg-background text-gray-700 dark:text-zinc-300">
- {log.status}
- </p>
- </div>
- </td>
- </tr>
- );
- })}
- </tbody>
- </table>
- )}
- </div>
- </Card>
- );
+      <div className="overflow-x-auto">
+        {logs.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-muted-foreground">No system logs yet.</p>
+        ) : (
+          <ul className="px-5 py-1">
+            {logs.map((log) => {
+              const t = TYPE_STYLES[log.type] || TYPE_STYLES.info;
+              return (
+                <li key={log.id} className="flex items-center gap-3 border-b border-border/60 py-3.5 last:border-b-0">
+                  {/* Identity: dot + message as separate flex elements. The dot is
+                      a fixed-size, shrink-proof flex item (flex: 0 0 auto); the
+                      message owns the remaining space and wraps without ever
+                      sliding under the dot. */}
+                  <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                    <span
+                      className="mt-[5px] flex h-2.5 w-2.5 flex-none items-center justify-center rounded-full"
+                      aria-hidden="true"
+                    >
+                      <span className={cn("h-2.5 w-2.5 rounded-full", t.dot)} />
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-medium leading-5 text-foreground">
+                      {log.event}
+                    </span>
+                  </div>
+                  <span className={cn("hidden w-20 shrink-0 text-[11px] font-medium uppercase tracking-wide sm:block", t.label)}>
+                    {t.mark}
+                  </span>
+                  <span className="hidden w-24 shrink-0 text-right font-mono text-[11px] text-muted-foreground sm:block">
+                    {log.time}
+                  </span>
+                  {/* Fixed-width badge keeps category/timestamp columns aligned
+                      across rows regardless of status word length */}
+                  <span
+                    className={cn(
+                      "inline-flex w-[72px] shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      log.type === 'alert'
+                        ? "bg-destructive-soft text-destructive"
+                        : log.type === 'warning'
+                          ? "bg-warning-soft text-warning"
+                          : "bg-secondary text-secondary-foreground"
+                    )}
+                  >
+                    <span className="truncate">{log.status}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </Card>
+  );
 }

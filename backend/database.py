@@ -1,5 +1,5 @@
 """
-Tenant-aware database layer for the LYFSense Dashboard.
+Tenant-aware database layer for the BlareXSense Dashboard.
 
 Production is driven by DATABASE_URL and is intended for PostgreSQL. When
 DATABASE_URL is not set, the backend keeps the previous SQLite file for local
@@ -33,7 +33,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 
 
-DB_PATH = Path(__file__).parent / "data" / "LYFSense.db"
+DB_PATH = Path(__file__).parent / "data" / "BlareXSense.db"
 DB_PATH.parent.mkdir(exist_ok=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
@@ -128,9 +128,10 @@ devices = Table(
     Column("tenant_id", Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True),
     Column("device_id", String(80), unique=True, nullable=False),
     Column("name", String(100), nullable=False),
-    Column("device_type", String(60), server_default="LYFSense_switch", nullable=False),
+    Column("device_type", String(60), server_default="BlareXSense_switch", nullable=False),
 
     Column("user_id", Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("api_key", String(120), nullable=True),
     Column("desired_mode", String(20), server_default="fall", nullable=False),
     Column("desired_relay", Boolean, server_default=text("false"), nullable=False),
     Column("relay_mode", String(20), server_default="manual", nullable=False),
@@ -484,6 +485,32 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
         return _shape_user(row) if row else None
 
 
+def update_user_password(user_id: int, password_hash: str) -> bool:
+    with engine.begin() as conn:
+        result = conn.execute(
+            users.update().where(users.c.id == user_id).values(password_hash=password_hash)
+        )
+        return result.rowcount > 0
+
+
+def update_user_profile(user_id: int, name: Optional[str] = None, email: Optional[str] = None) -> bool:
+    values = {}
+    if name:
+        values["name"] = name
+    if email:
+        values["email"] = email
+    if not values:
+        return True
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                users.update().where(users.c.id == user_id).values(**values)
+            )
+            return result.rowcount > 0
+    except IntegrityError:
+        return False
+
+
 def get_tenant_for_user(user_id: int) -> Optional[Dict[str, Any]]:
     with engine.connect() as conn:
         tenant_id = _get_user_tenant_id(conn, user_id)
@@ -518,8 +545,11 @@ def get_tenant_members(user_id: int) -> List[Dict[str, Any]]:
         return members
 
 
-def link_device(device_id: str, name: str, user_id: int, device_type: str = "LYFSense_switch", api_key: str = "") -> bool:
+def link_device(device_id: str, name: str, user_id: int, device_type: str = "BlareXSense_switch", api_key: str = "") -> Any:
     try:
+        import secrets
+        if not api_key:
+            api_key = secrets.token_urlsafe(32)
         with engine.begin() as conn:
             tenant_id = _require_user_tenant_id(conn, user_id)
             if "api_key" in _column_names("devices"):
@@ -557,7 +587,7 @@ def link_device(device_id: str, name: str, user_id: int, device_type: str = "LYF
                         relay_mode="manual",
                     )
                 )
-            return True
+            return api_key
     except (IntegrityError, ValueError):
         return False
 
@@ -1234,3 +1264,30 @@ def update_device_key(device_id: str, new_key: str) -> bool:
             return True
     except Exception:
         return False
+
+
+def rotate_device_key(device_id: str, user_id: int) -> Optional[str]:
+    import secrets
+    if not verify_device_ownership(device_id, user_id):
+        return None
+    new_key = secrets.token_urlsafe(32)
+    if update_device_key(device_id, new_key):
+        return new_key
+    return None
+
+
+def verify_device_key(device_id: str, api_key: str) -> bool:
+    if not api_key:
+        return False
+    try:
+        with engine.connect() as conn:
+            if "api_key" in _column_names("devices"):
+                row = conn.execute(
+                    text("SELECT 1 FROM devices WHERE device_id = :device_id AND api_key = :api_key"),
+                    {"device_id": device_id, "api_key": api_key}
+                ).first()
+                return bool(row)
+            return True
+    except Exception:
+        return False
+

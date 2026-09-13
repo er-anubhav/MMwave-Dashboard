@@ -1,22 +1,37 @@
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-    // Dark mode is always on — no toggle allowed
-    const isDarkMode = true;
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem("theme");
+        if (saved) {
+            return saved === "dark";
+        }
+        return false;
+    });
 
     useEffect(() => {
         const root = window.document.documentElement;
-        root.classList.add("dark");
-        localStorage.setItem("theme", "dark");
-    }, []);
+        if (isDarkMode) {
+            root.classList.add("dark");
+            localStorage.setItem("theme", "dark");
+        } else {
+            root.classList.remove("dark");
+            localStorage.setItem("theme", "light");
+        }
+    }, [isDarkMode]);
 
-    // No-op: kept so consumers don't break if they still call it
-    const toggleTheme = () => {};
+    const toggleTheme = () => {
+        setIsDarkMode((prev) => !prev);
+    };
+
+    const setTheme = (mode) => {
+        setIsDarkMode(mode === "dark");
+    };
 
     return (
-        <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+        <ThemeContext.Provider value={{ isDarkMode, toggleTheme, setTheme, theme: isDarkMode ? "dark" : "light" }}>
             {children}
         </ThemeContext.Provider>
     );

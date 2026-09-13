@@ -524,9 +524,9 @@ export default function DeviceManagement() {
         </div>
       </div>
 
-      {/* 3. Devices Section Title */}
-      <div className="flex items-center justify-between pt-1">
-        <h2 className="text-lg sm:text-xl font-normal tracking-tight text-foreground flex items-center gap-2.5">
+      {/* 3. Devices Section Title (Mobile Only) */}
+      <div className="sm:hidden flex items-center justify-between pt-1">
+        <h2 className="text-lg font-normal tracking-tight text-foreground flex items-center gap-2.5">
           <span>Devices</span>
           <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
             {filteredDevices.length}

@@ -33,8 +33,10 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 
 
-DB_PATH = Path(__file__).parent / "data" / "BlareXSense.db"
-DB_PATH.parent.mkdir(exist_ok=True)
+_data_dir = Path(__file__).parent / "data"
+_data_dir.mkdir(exist_ok=True)
+_default_sqlite_name = "LYFSense.db" if (_data_dir / "LYFSense.db").exists() else "BlareXSense.db"
+DB_PATH = Path(os.getenv("DATABASE_PATH", _data_dir / _default_sqlite_name))
 
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 if DATABASE_URL.startswith("postgres://"):
@@ -353,6 +355,7 @@ def _ensure_legacy_columns(conn) -> None:
     _ensure_column(conn, "users", "tenant_id", f"tenant_id {int_type}")
     _ensure_column(conn, "users", "role", "role VARCHAR(30) DEFAULT 'owner'")
     _ensure_column(conn, "devices", "tenant_id", f"tenant_id {int_type}")
+    _ensure_column(conn, "devices", "api_key", "api_key VARCHAR(120)")
 
     _ensure_column(conn, "devices", "desired_mode", "desired_mode VARCHAR(20) DEFAULT 'fall'")
     _ensure_column(conn, "devices", "desired_relay", f"desired_relay {bool_default_false}")

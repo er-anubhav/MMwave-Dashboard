@@ -31,7 +31,11 @@ import {
   ExternalLink,
   Bot,
   MapPin,
-  MoreHorizontal
+  MoreHorizontal,
+  QrCode,
+  KeyRound,
+  ScanLine,
+  RefreshCw
 } from 'lucide-react';
 import api from '../api/api';
 import { toast } from 'sonner';
@@ -189,6 +193,9 @@ export default function DeviceManagement() {
 
   const { devices, linkDevice } = useDevice();
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [addStep, setAddStep] = useState(1);
+  const [addMethod, setAddMethod] = useState('qr'); // 'qr' | 'id'
+  const [setupCode, setSetupCode] = useState('');
   const [linkForm, setLinkForm] = useState({ deviceId: '', name: '', deviceType: 'BlareXSense_switch' });
   const [inspectDevice, setInspectDevice] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -230,9 +237,60 @@ export default function DeviceManagement() {
     setDrawerOpen(true);
   };
 
+  const handleOpenAddDevice = () => {
+    setAddStep(1);
+    setAddMethod('qr');
+    setSetupCode('');
+    const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+    setLinkForm({ deviceId: demoId, name: '', deviceType: 'BlareXSense_switch' });
+    setLinkDialogOpen(true);
+  };
+
+  const handleNextStep = (e) => {
+    if (e) e.preventDefault();
+    if (addStep === 1) {
+      if (addMethod === 'id' && linkForm.deviceId.startsWith('BX-SENSE-')) {
+        setLinkForm((prev) => ({ ...prev, deviceId: '' }));
+      } else if (addMethod === 'qr' && !linkForm.deviceId) {
+        const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+        setLinkForm((prev) => ({ ...prev, deviceId: demoId }));
+      }
+      setAddStep(2);
+      return;
+    }
+    if (addStep === 2) {
+      if (!linkForm.deviceId.trim()) {
+        toast.error('Device ID is required');
+        return;
+      }
+      if (addMethod === 'id' && setupCode && setupCode.trim().length < 4) {
+        toast.error('Setup code should be at least 4 digits');
+        return;
+      }
+      setAddStep(3);
+      return;
+    }
+    if (addStep === 3) {
+      handleLinkDevice();
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (addStep > 1) {
+      setAddStep(addStep - 1);
+    } else {
+      setLinkDialogOpen(false);
+    }
+  };
+
   const handleLinkDevice = async (e) => {
-    e.preventDefault();
-    const result = await linkDevice(linkForm.deviceId, linkForm.name, linkForm.deviceType);
+    if (e) e.preventDefault();
+    if (!linkForm.deviceId.trim()) {
+      toast.error('Device ID is required');
+      return;
+    }
+    const finalName = linkForm.name.trim() || 'Living Room Sense';
+    const result = await linkDevice(linkForm.deviceId.trim().toUpperCase(), finalName, linkForm.deviceType);
     if (result.success) {
       if (result.apiKey) {
         toast.success('Device linked successfully', {
@@ -242,6 +300,7 @@ export default function DeviceManagement() {
         toast.success('Device linked successfully!');
       }
       setLinkDialogOpen(false);
+      setAddStep(1);
       setLinkForm({ deviceId: '', name: '', deviceType: 'BlareXSense_switch' });
     } else {
       toast.error(result.error);
@@ -356,7 +415,7 @@ export default function DeviceManagement() {
 
           {/* Add Device Primary Button */}
           <Button
-            onClick={() => setLinkDialogOpen(true)}
+            onClick={handleOpenAddDevice}
             className="h-10 px-4 rounded-xl font-normal text-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 shadow-xs transition-all"
           >
             <Plus size={16} />
@@ -386,7 +445,7 @@ export default function DeviceManagement() {
             Connect a BlareXSense mmWave radar unit to observe presence and control appliances.
           </p>
           <Button
-            onClick={() => setLinkDialogOpen(true)}
+            onClick={handleOpenAddDevice}
             className="h-10 px-4 text-sm font-normal bg-primary text-primary-foreground mt-4 rounded-xl"
           >
             <Plus size={16} className="mr-1.5" />
@@ -406,7 +465,7 @@ export default function DeviceManagement() {
 
           {/* "+ Link New Device" Dashed Card */}
           <div
-            onClick={() => setLinkDialogOpen(true)}
+            onClick={handleOpenAddDevice}
             className="border-2 border-dashed border-border/80 bg-secondary/10 hover:border-primary/50 hover:bg-secondary/20 transition-all rounded-2xl sm:rounded-[22px] p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[190px] group"
           >
             <div className="w-12 h-12 rounded-2xl bg-secondary/60 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -574,7 +633,6 @@ export default function DeviceManagement() {
           <Card className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs flex flex-col justify-between space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base sm:text-lg font-normal text-foreground flex items-center gap-2">
-                <Bell size={18} className="text-primary" />
                 <span>Latest Alerts</span>
               </h2>
               <Link to="/notifications" className="text-xs sm:text-sm font-normal text-primary hover:underline">
@@ -631,79 +689,270 @@ export default function DeviceManagement() {
         onOpenChange={setDrawerOpen}
       />
 
-      {/* Reusable Link Device Dialog */}
+      {/* Reusable Multi-Step Add Device Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="sm:max-w-md bg-card border-border text-foreground rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg bg-card border-border text-foreground rounded-2xl p-5 sm:p-6">
+          <DialogHeader className="space-y-1 text-left">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-normal text-muted-foreground uppercase tracking-wider">
+                Step {addStep} of 3 • {addStep === 1 ? 'Method' : addStep === 2 ? (addMethod === 'qr' ? 'Scan' : 'Credentials') : 'Space & Profile'}
+              </span>
+            </div>
             <DialogTitle className="text-lg font-normal text-foreground">
-              Link New BlareX Sense Unit
+              {addStep === 1 && 'How would you like to add it?'}
+              {addStep === 2 && (addMethod === 'qr' ? 'Scan the device QR' : 'Enter pairing details')}
+              {addStep === 3 && 'Name & assign space'}
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm font-normal text-muted-foreground">
-              Pair a new radar sensor and assign it to a room or location.
+              {addStep === 1 && 'Select whether to scan the device QR code or enter hardware credentials manually.'}
+              {addStep === 2 && (addMethod === 'qr' ? 'Position the sensor QR code in front of camera or use detected ID.' : 'Enter the unique Device ID and optional 6-digit setup code.')}
+              {addStep === 3 && 'Give your radar sensor a recognizable name and assign it to a room.'}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleLinkDevice} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="deviceId" className="text-xs sm:text-sm font-normal text-foreground">
-                Device ID
-              </Label>
-              <Input
-                id="deviceId"
-                placeholder="e.g. BX-SENSE-A7F2 or STD-001"
-                value={linkForm.deviceId}
-                onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
-                required
-                className="text-sm font-normal bg-secondary/30 h-10 rounded-xl"
-              />
-              <p className="text-xs font-normal text-muted-foreground">
-                Printed on your radar switch hardware label.
-              </p>
-            </div>
+          {/* 3-Step Progress Indicator Bar */}
+          <div className="flex items-center gap-1.5 pt-1 pb-2">
+            <div className={`h-1 flex-1 rounded-full transition-all ${addStep >= 1 ? 'bg-primary' : 'bg-secondary'}`} />
+            <div className={`h-1 flex-1 rounded-full transition-all ${addStep >= 2 ? 'bg-primary' : 'bg-secondary'}`} />
+            <div className={`h-1 flex-1 rounded-full transition-all ${addStep >= 3 ? 'bg-primary' : 'bg-secondary'}`} />
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="name" className="text-xs sm:text-sm font-normal text-foreground">
-                Room / Location
-              </Label>
-              <Input
-                id="name"
-                placeholder="e.g. Living Room"
-                value={linkForm.name}
-                onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
-                required
-                className="text-sm font-normal bg-secondary/30 h-10 rounded-xl"
-              />
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs font-normal text-muted-foreground">Suggestions:</span>
-                {ROOM_SUGGESTIONS.map((room) => (
+          <form onSubmit={handleNextStep} className="space-y-4">
+            {/* Step 1: Choice between QR Code & Device ID */}
+            {addStep === 1 && (
+              <div className="space-y-3.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
-                    key={room}
                     type="button"
-                    onClick={() => setLinkForm({ ...linkForm, name: room })}
-                    className="text-xs font-normal px-2.5 py-1 rounded-full border border-border/80 bg-secondary/40 hover:bg-secondary text-foreground transition-colors"
+                    onClick={() => {
+                      setAddMethod('qr');
+                      if (!linkForm.deviceId) {
+                        const demoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+                        setLinkForm((prev) => ({ ...prev, deviceId: demoId }));
+                      }
+                    }}
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between gap-3 ${
+                      addMethod === 'qr'
+                        ? 'border-primary/70 bg-primary/5 text-foreground ring-1 ring-primary/40'
+                        : 'border-border/70 bg-card hover:bg-secondary/40 text-foreground'
+                    }`}
                   >
-                    {room}
+                    <div className="w-9 h-9 rounded-lg bg-secondary/80 flex items-center justify-center text-primary">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-normal text-foreground">Scan QR code</div>
+                      <div className="text-xs font-normal text-muted-foreground mt-0.5 leading-relaxed">
+                        Fastest. Use the QR printed on the device or setup card.
+                      </div>
+                    </div>
                   </button>
-                ))}
-              </div>
-            </div>
 
-            <DialogFooter className="mt-5 pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddMethod('id');
+                    }}
+                    className={`p-4 rounded-xl border text-left transition-all flex flex-col justify-between gap-3 ${
+                      addMethod === 'id'
+                        ? 'border-primary/70 bg-primary/5 text-foreground ring-1 ring-primary/40'
+                        : 'border-border/70 bg-card hover:bg-secondary/40 text-foreground'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-secondary/80 flex items-center justify-center text-primary">
+                      <KeyRound className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-normal text-foreground">Enter Device ID</div>
+                      <div className="text-xs font-normal text-muted-foreground mt-0.5 leading-relaxed">
+                        Use the unique Device ID and Setup Code.
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-xl bg-secondary/30 border border-border/50 text-xs font-normal text-muted-foreground leading-relaxed">
+                  Pairing securely links the mmWave radar hardware to your account. Live telemetry and relay automation will activate immediately upon verification.
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Scanner or Manual Input */}
+            {addStep === 2 && (
+              <div className="space-y-4 pt-1">
+                {addMethod === 'qr' ? (
+                  <div className="space-y-3">
+                    <div className="border border-dashed border-primary/40 bg-primary/5 rounded-2xl p-5 text-center flex flex-col items-center justify-center relative overflow-hidden">
+                      <div className="w-32 h-32 rounded-xl bg-card border border-border p-2 flex items-center justify-center relative shadow-sm">
+                        <div className="w-full h-full bg-secondary/30 rounded-lg flex items-center justify-center relative overflow-hidden">
+                          <QrCode className="w-20 h-20 text-foreground/80 opacity-90" />
+                          <div className="absolute inset-x-0 h-0.5 bg-primary shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse" />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-normal">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Device QR Detected
+                        </span>
+                        <div className="text-sm font-mono text-foreground mt-1.5 font-normal tracking-wide">
+                          {linkForm.deviceId || 'BX-SENSE-SCAN'}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newDemoId = 'BX-SENSE-' + Math.random().toString(16).slice(2, 8).toUpperCase();
+                          setLinkForm((prev) => ({ ...prev, deviceId: newDemoId }));
+                        }}
+                        className="mt-2.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Generate different test QR
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="detectedId" className="text-xs font-normal text-muted-foreground">
+                        Detected Device ID (Editable if needed)
+                      </Label>
+                      <Input
+                        id="detectedId"
+                        value={linkForm.deviceId}
+                        onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
+                        placeholder="BX-SENSE-XXXX"
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-9 sm:h-10 rounded-xl font-mono uppercase"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="manualDeviceId" className="text-xs sm:text-sm font-normal text-foreground">
+                        Device ID
+                      </Label>
+                      <Input
+                        id="manualDeviceId"
+                        placeholder="e.g. BX-SENSE-A7F2 or STD-001"
+                        value={linkForm.deviceId}
+                        onChange={(e) => setLinkForm({ ...linkForm, deviceId: e.target.value })}
+                        required
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl font-mono uppercase"
+                        autoFocus
+                      />
+                      <p className="text-xs font-normal text-muted-foreground">
+                        Printed on the barcode label under the radar housing.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="setupCode" className="text-xs sm:text-sm font-normal text-foreground">
+                        Setup Code (Optional)
+                      </Label>
+                      <Input
+                        id="setupCode"
+                        placeholder="6-digit PIN (e.g. 748192)"
+                        maxLength={6}
+                        value={setupCode}
+                        onChange={(e) => setSetupCode(e.target.value)}
+                        className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl font-mono"
+                      />
+                      <p className="text-xs font-normal text-muted-foreground">
+                        Found inside the quick start packaging card.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Name & Room Assignment */}
+            {addStep === 3 && (
+              <div className="space-y-3.5 pt-1">
+                <div className="space-y-1.5">
+                  <Label htmlFor="devName" className="text-xs sm:text-sm font-normal text-foreground">
+                    Device Name
+                  </Label>
+                  <Input
+                    id="devName"
+                    placeholder="e.g. Living Room Sense"
+                    value={linkForm.name}
+                    onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
+                    required
+                    className="text-xs sm:text-sm font-normal bg-secondary/30 h-10 rounded-xl"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs sm:text-sm font-normal text-foreground">
+                    Room / Space Assignment
+                  </Label>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {ROOM_SUGGESTIONS.map((room) => {
+                      const isSelected = linkForm.name.toLowerCase().includes(room.toLowerCase());
+                      return (
+                        <button
+                          key={room}
+                          type="button"
+                          onClick={() => {
+                            setLinkForm((prev) => ({
+                              ...prev,
+                              name: `${room} Sense`,
+                            }));
+                          }}
+                          className={`text-xs font-normal px-2.5 py-1 rounded-full border transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border/80 bg-secondary/40 hover:bg-secondary text-foreground'
+                          }`}
+                        >
+                          {room}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="deviceType" className="text-xs sm:text-sm font-normal text-foreground">
+                    Hardware Model / Profile
+                  </Label>
+                  <select
+                    id="deviceType"
+                    value={linkForm.deviceType}
+                    onChange={(e) => setLinkForm({ ...linkForm, deviceType: e.target.value })}
+                    className="w-full text-xs sm:text-sm font-normal bg-secondary/30 border border-border/80 rounded-xl h-10 px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="BlareXSense_switch">BlareX Sense Switch (Relay + mmWave Radar)</option>
+                    <option value="BlareXSense_sensor">BlareX Radar Node (Telemetry Only)</option>
+                  </select>
+                  <p className="text-xs font-normal text-muted-foreground">
+                    Radar micro-motion sensitivity thresholds can be calibrated anytime in Device Inspect.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Navigation Footer */}
+            <DialogFooter className="mt-5 pt-3 border-t border-border/60 flex items-center justify-between gap-2 sm:justify-between">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setLinkDialogOpen(false)}
-                className="text-xs sm:text-sm font-normal h-10 px-4 rounded-xl"
+                onClick={handlePrevStep}
+                className="text-xs sm:text-sm font-normal h-9 sm:h-10 px-4 rounded-xl border-border/70"
               >
-                Cancel
+                {addStep === 1 ? 'Cancel' : 'Back'}
               </Button>
+
               <Button
                 type="submit"
                 size="sm"
-                className="text-xs sm:text-sm font-normal bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 rounded-xl"
+                className="text-xs sm:text-sm font-normal bg-primary text-primary-foreground hover:bg-primary/90 h-9 sm:h-10 px-4 rounded-xl"
               >
-                Link Device
+                {addStep < 3 ? 'Continue' : 'Link Device'}
               </Button>
             </DialogFooter>
           </form>

@@ -25,8 +25,14 @@ export const AuthProvider = ({ children }) => {
           const response = await api.get(`/auth/me`);
           setUser(response.data);
         } catch (error) {
-          // api interceptor handles refresh/logout
+          if (error.response?.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            setUser(null);
+          }
         }
+      } else {
+        setUser(null);
       }
       setLoading(false);
     };

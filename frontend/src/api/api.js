@@ -32,24 +32,34 @@ api.interceptors.response.use(
         const originalRequest = error.config;
         const refreshToken = localStorage.getItem('refresh_token');
 
-        if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            try {
-                const response = await axios.post(`${API_URL}/auth/refresh`, {
-                    refresh_token: refreshToken
-                });
+            if (refreshToken) {
+                try {
+                    const response = await axios.post(`${API_URL}/auth/refresh`, {
+                        refresh_token: refreshToken
+                    });
 
-                const { access_token } = response.data;
-                localStorage.setItem('access_token', access_token);
+                    const { access_token } = response.data;
+                    localStorage.setItem('access_token', access_token);
 
-                originalRequest.headers.Authorization = `Bearer ${access_token}`;
-                return axios(originalRequest);
-            } catch (refreshError) {
+                    originalRequest.headers.Authorization = `Bearer ${access_token}`;
+                    return axios(originalRequest);
+                } catch (refreshError) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+                        window.location.href = '/login';
+                    }
+                    return Promise.reject(refreshError);
+                }
+            } else {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
-                return Promise.reject(refreshError);
+                if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+                    window.location.href = '/login';
+                }
             }
         }
 

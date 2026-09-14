@@ -16,12 +16,15 @@ import {
 import { Switch } from './ui/switch';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   Wifi,
   Copy,
   Trash2,
   SlidersHorizontal,
+  Sliders,
+  ExternalLink,
   Shield,
   Zap,
   Check,
@@ -39,7 +42,9 @@ import { useDevice } from '../contexts/DeviceContext';
 import deviceImg from '../assets/blarex-device.png';
 
 export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
+  const navigate = useNavigate();
   const { unlinkDevice, loadDevices, updateDevice } = useDevice();
+  const [calibrating, setCalibrating] = useState(false);
 
   // Active tab state: 'control' | 'presence' | 'alert' | 'settings'
   const [activeTab, setActiveTab] = useState('control');
@@ -234,6 +239,20 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
     }
   };
 
+  // Calibration handler
+  const handleCalibrate = async () => {
+    if (!device?.device_id) return;
+    setCalibrating(true);
+    try {
+      await api.post(`/devices/${device.device_id}/calibrate`);
+      toast.success('Calibration command sent! Please keep the area completely empty for 5–10 seconds.');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to trigger calibration');
+    } finally {
+      setCalibrating(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -321,6 +340,20 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                 </div>
               </div>
             </div>
+
+            {/* Open Full Device Details Page */}
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                navigate(`/devices/${device.device_id}`);
+              }}
+              className="px-2.5 py-1.5 rounded-xl border border-border/70 bg-secondary/30 hover:bg-secondary text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors shrink-0"
+              title="Open full device page"
+            >
+              <span className="hidden sm:inline">Details</span>
+              <ExternalLink size={13} />
+            </button>
           </div>
 
           {/* 2. 4-Tab Bar matching v5 HTML: Control • Presence • Alert • Device settings */}
@@ -493,8 +526,35 @@ export default function DeviceInspectDrawer({ device, open, onOpenChange }) {
                     Presence sensing
                   </h2>
                   <p className="text-xs font-normal text-muted-foreground mt-0.5">
-                    Keep the everyday controls simple; tune sensing only when installation needs it.
+                    Tune sensing thresholds and calibrate baseline room radar clutter.
                   </p>
+                </div>
+
+                {/* Radar Noise Baseline Calibration */}
+                <div className="p-3 sm:p-3.5 rounded-xl border border-border/80 bg-card space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs sm:text-sm font-normal text-foreground block">
+                        Radar Noise Calibration
+                      </span>
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        Map stationary room clutter (fans, furniture, walls)
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Ensure the room is completely empty for 5–10 seconds before starting.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={calibrating || !isOnline}
+                    onClick={handleCalibrate}
+                    className="w-full h-9 text-xs font-normal border-border gap-2 hover:bg-secondary text-foreground"
+                  >
+                    <Sliders className="h-3.5 w-3.5 text-primary" />
+                    {calibrating ? "Calibrating..." : "Calibrate Room Radar (5s)"}
+                  </Button>
                 </div>
 
                 {/* Detection range */}

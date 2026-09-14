@@ -616,7 +616,11 @@ def get_user_devices(user_id: int) -> List[Dict[str, Any]]:
 
 def get_device_by_id(device_id: str) -> Optional[Dict[str, Any]]:
     with engine.connect() as conn:
-        row = _row(conn.execute(select(devices).where(devices.c.device_id == device_id)).first())
+        row = _row(
+            conn.execute(
+                select(devices).where(func.lower(devices.c.device_id) == (device_id or "").lower())
+            ).first()
+        )
         return _shape_device(row) if row else None
 
 
@@ -625,7 +629,10 @@ def get_user_device(device_id: str, user_id: int) -> Optional[Dict[str, Any]]:
         tenant_id = _require_user_tenant_id(conn, user_id)
         row = _row(
             conn.execute(
-                select(devices).where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+                select(devices).where(
+                    func.lower(devices.c.device_id) == (device_id or "").lower(),
+                    devices.c.tenant_id == tenant_id,
+                )
             ).first()
         )
         return _shape_device(row) if row else None
@@ -636,7 +643,10 @@ def verify_device_ownership(device_id: str, user_id: int) -> bool:
     with engine.connect() as conn:
         tenant_id = _require_user_tenant_id(conn, user_id)
         row = conn.execute(
-            select(devices.c.id).where(devices.c.device_id == device_id, devices.c.tenant_id == tenant_id)
+            select(devices.c.id).where(
+                func.lower(devices.c.device_id) == (device_id or "").lower(),
+                devices.c.tenant_id == tenant_id,
+            )
         ).first()
         return bool(row)
 
@@ -661,7 +671,7 @@ def update_device_health(device_id: str, data: Dict[str, Any]) -> bool:
 
     with engine.begin() as conn:
         result = conn.execute(
-            devices.update().where(devices.c.device_id == device_id).values(
+            devices.update().where(func.lower(devices.c.device_id) == (device_id or "").lower()).values(
                 firmware_version=firmware_version if firmware_version is not None else devices.c.firmware_version,
                 wifi_rssi=wifi_rssi if wifi_rssi is not None else devices.c.wifi_rssi,
                 ip_address=ip_address if ip_address is not None else devices.c.ip_address,
@@ -817,7 +827,7 @@ def get_latest_sensor_data(device_id: str) -> Optional[Dict[str, Any]]:
         row = _row(
             conn.execute(
                 select(sensor_data.c.data_json, sensor_data.c.timestamp)
-                .where(sensor_data.c.device_id == device_id)
+                .where(func.lower(sensor_data.c.device_id) == (device_id or "").lower())
                 .order_by(sensor_data.c.timestamp.desc())
                 .limit(1)
             ).first()
@@ -833,7 +843,7 @@ def get_sensor_data_history(device_id: str, limit: int = 100) -> List[Dict[str, 
     with engine.connect() as conn:
         result = conn.execute(
             select(sensor_data.c.data_json, sensor_data.c.timestamp)
-            .where(sensor_data.c.device_id == device_id)
+            .where(func.lower(sensor_data.c.device_id) == (device_id or "").lower())
             .order_by(sensor_data.c.timestamp.desc())
             .limit(limit)
         )
@@ -847,7 +857,11 @@ def get_sensor_data_history(device_id: str, limit: int = 100) -> List[Dict[str, 
 
 def update_device_mode(device_id: str, mode: str) -> bool:
     with engine.begin() as conn:
-        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(desired_mode=mode))
+        result = conn.execute(
+            devices.update()
+            .where(func.lower(devices.c.device_id) == (device_id or "").lower())
+            .values(desired_mode=mode)
+        )
         return result.rowcount > 0
 
 
@@ -856,13 +870,21 @@ def update_device_relay(device_id: str, relay: bool, relay_mode: Optional[str] =
     if relay_mode:
         values["relay_mode"] = relay_mode
     with engine.begin() as conn:
-        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(**values))
+        result = conn.execute(
+            devices.update()
+            .where(func.lower(devices.c.device_id) == (device_id or "").lower())
+            .values(**values)
+        )
         return result.rowcount > 0
 
 
 def update_device_relay_mode(device_id: str, relay_mode: str) -> bool:
     with engine.begin() as conn:
-        result = conn.execute(devices.update().where(devices.c.device_id == device_id).values(relay_mode=relay_mode))
+        result = conn.execute(
+            devices.update()
+            .where(func.lower(devices.c.device_id) == (device_id or "").lower())
+            .values(relay_mode=relay_mode)
+        )
         return result.rowcount > 0
 
 
@@ -870,7 +892,9 @@ def get_device_command(device_id: str) -> Optional[Dict[str, Any]]:
     with engine.connect() as conn:
         row = _row(
             conn.execute(
-                select(devices.c.desired_mode, devices.c.desired_relay, devices.c.relay_mode).where(devices.c.device_id == device_id)
+                select(devices.c.desired_mode, devices.c.desired_relay, devices.c.relay_mode).where(
+                    func.lower(devices.c.device_id) == (device_id or "").lower()
+                )
             ).first()
         )
         if not row:
